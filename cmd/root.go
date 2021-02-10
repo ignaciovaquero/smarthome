@@ -5,13 +5,19 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
 	"github.com/spf13/viper"
 )
 
-const envPrefix = "SMARTHOME"
+const (
+	configFlag  = "config"
+	verboseFlag = "verbose"
+)
 
-var cfgFile string
+var (
+	sugar *zap.SugaredLogger
+)
 
 var rootCmd = &cobra.Command{
 	Use:   "smarthome",
@@ -34,23 +40,53 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is ./smarthome.yaml)")
-	viper.BindPFlag("config", rootCmd.PersistentFlags().Lookup("config"))
+	rootCmd.PersistentFlags().StringP(configFlag, "c", "", `config file (default "./smarthome.yaml")`)
+	rootCmd.PersistentFlags().BoolP(verboseFlag, "v", false, "verbose logging (default false)")
+	viper.BindPFlag(configFlag, rootCmd.PersistentFlags().Lookup(configFlag))
+	viper.BindPFlag(verboseFlag, rootCmd.PersistentFlags().Lookup(verboseFlag))
+	if err := initLogger(); err != nil {
+		fmt.Printf("%+v\n", err)
+	}
 }
 
-// initConfig reads in config file and ENV variables if set.
+func initLogger() error {
+	var zl *zap.Logger
+	cfg := zap.Config{
+		Development: false,
+		Sampling: &zap.SamplingConfig{
+			Initial:    100,
+			Thereafter: 100,
+		},
+		Encoding:         "json",
+		EncoderConfig:    zap.NewProductionEncoderConfig(),
+		OutputPaths:      []string{"stderr"},
+		ErrorOutputPaths: []string{"stderr"},
+	}
+	if viper.GetBool(verboseFlag) {
+		cfg.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
+	} else {
+		cfg.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
+	}
+	zl, err := cfg.Build()
+
+	if err != nil {
+		return fmt.Errorf("error when initializing logger: %w", err)
+	}
+
+	sugar = zl.Sugar()
+	sugar.Debug("logger initialization successful")
+	return nil
+}
+
 func initConfig() {
-	if cfgFile != "" {
+	if cfgFile := viper.GetString(configFlag); cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	} else {
 		viper.AddConfigPath(".")
 		viper.SetConfigName("smarthome")
-		viper.SetConfigType("yaml")
+		viper.SetConfigType("yml")
 	}
-
-	viper.SetEnvPrefix(envPrefix)
-
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+		sugar.Debugw("using config file", "config_file", viper.ConfigFileUsed())
 	}
 }
