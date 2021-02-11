@@ -3,6 +3,7 @@ module github.com/igvaquero18/smarthome
 go 1.15
 
 require (
+	github.com/aws/aws-sdk-go v1.37.8
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/labstack/echo-contrib v0.9.0
 	github.com/labstack/echo/v4 v4.1.6
@@ -15,6 +16,7 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.7.1
+	github.com/stretchr/testify v1.4.0
 	github.com/valyala/fasttemplate v1.2.1 // indirect
 	go.uber.org/zap v1.10.0
 	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c // indirect

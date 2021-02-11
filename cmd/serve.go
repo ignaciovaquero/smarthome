@@ -40,6 +40,7 @@ func serve(cmd *cobra.Command, args []string) {
 	address := viper.GetString(addressFlag)
 	port := viper.GetInt(portFlag)
 	jwtSecret := viper.GetString(jwtSecretFlag)
+	a := api.NewAPI(api.SetLogger(sugar))
 
 	sugar.Infow("starting server", "address", address, "port", port)
 
@@ -51,15 +52,15 @@ func serve(cmd *cobra.Command, args []string) {
 			`"bytes_in":${bytes_in},"bytes_out":${bytes_out}}` + "\n",
 		Output: os.Stdout,
 	}))
-	r := e.Group(fmt.Sprintf("%s/bedroom", apiVersion))
 
 	if jwtSecret != "" {
-		r.Use(middleware.JWT([]byte(jwtSecret)))
+		e.Use(middleware.JWT([]byte(jwtSecret)))
 	} else {
 		sugar.Warn("no jwt secret provided, disabling authentication")
 	}
 
-	r.POST("/something", api.Something)
+	autotune := e.Group(fmt.Sprintf("%s/autoadjust", apiVersion))
+	autotune.POST("/:room", a.AutoAdjustTemperature)
 	p := prometheus.NewPrometheus("smarthome", nil)
 	p.Use(e)
 
