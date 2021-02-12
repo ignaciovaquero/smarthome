@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/igvaquero18/smarthome/api"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
@@ -16,12 +19,14 @@ const (
 	portEnv      = "SMARTHOME_SERVER_PORT"
 	addressEnv   = "SMARTHOME_LISTEN_ADDRESS"
 	jwtSecretEnv = "SMARTHOME_JWT_SECRET"
+	awsRegionEnv = "SMARTHOME_AWS_REGION"
 )
 
 const (
 	portFlag      = "server.port"
 	addressFlag   = "server.address"
 	jwtSecretFlag = "server.jwt.secret"
+	awsRegionFlag = "aws.region"
 )
 
 const apiVersion string = "v1"
@@ -41,6 +46,11 @@ func serve(cmd *cobra.Command, args []string) {
 	port := viper.GetInt(portFlag)
 	jwtSecret := viper.GetString(jwtSecretFlag)
 	a := api.NewAPI(api.SetLogger(sugar))
+	sess := session.Must(session.NewSession(&aws.Config{
+		Region: aws.String(viper.GetString(awsRegionFlag)),
+	}))
+
+	_ = dynamodb.New(sess) // TODO: create a dyn client
 
 	sugar.Infow("starting server", "address", address, "port", port)
 
@@ -72,9 +82,12 @@ func init() {
 
 	serveCmd.PersistentFlags().IntP("port", "p", 8080, "port where to listen on")
 	serveCmd.PersistentFlags().StringP("address", "a", "0.0.0.0", "address where to bind to")
+	serveCmd.PersistentFlags().StringP("aws-region", "r", "us-west-1", "AWS region for DynamoDB")
 	viper.BindPFlag(portFlag, serveCmd.PersistentFlags().Lookup("port"))
 	viper.BindPFlag(addressFlag, serveCmd.PersistentFlags().Lookup("address"))
+	viper.BindPFlag(awsRegionFlag, serveCmd.PersistentFlags().Lookup("aws-region"))
 	viper.BindEnv(portFlag, portEnv)
 	viper.BindEnv(addressFlag, addressEnv)
 	viper.BindEnv(jwtSecretFlag, jwtSecretEnv)
+	viper.BindEnv(awsRegionFlag, awsRegionEnv)
 }
