@@ -1,12 +1,15 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"sync"
+	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/igvaquero18/smarthome/api"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
@@ -32,26 +35,67 @@ const (
 const apiVersion string = "v1"
 
 // serveCmd represents the serve command
-var serveCmd = &cobra.Command{
-	Use:   "serve",
-	Short: "starts a smarthome server",
-	Long: `Starts a smarthome server and listens on the port
+var (
+	serveCmd = &cobra.Command{
+		Use:   "serve",
+		Short: "starts a smarthome server",
+		Long: `Starts a smarthome server and listens on the port
 	specified in the configuration file, in the command line
 	flags or in the corresponding environment variable.`,
-	Run: serve,
-}
+		Run: serve,
+	}
+)
 
 func serve(cmd *cobra.Command, args []string) {
 	address := viper.GetString(addressFlag)
 	port := viper.GetInt(portFlag)
 	jwtSecret := viper.GetString(jwtSecretFlag)
+	region := viper.GetString(awsRegionFlag)
 	a := api.NewAPI(api.SetLogger(sugar))
-	sess := session.Must(session.NewSession(&aws.Config{
-		Region: aws.String(viper.GetString(awsRegionFlag)),
-	}))
+	cfg, err := config.LoadDefaultConfig(
+		context.TODO(),
+		config.WithRegion(region),
+		config.WithEndpointResolver(aws.NewConfig().EndpointResolver),
+	)
+	if err != nil {
+		sugar.Fatalw("error loading aws configuration", "error", err.Error())
+	}
 
-	_ = dynamodb.New(sess) // TODO: create a dyn client
+	sugar.Debugw("creating DynamoDB client", "region", region)
+	dynamoClient := dynamodb.NewFromConfig(cfg)
+	waitTime := 7 * time.Minute
+	dynamoTables := []string{"Home", "Indoor Temperature", "Outdoor Temperature"}
 
+	errCh := make(chan error)
+	wgDone := make(chan bool, 1)
+	wg := &sync.WaitGroup{}
+	wg.Add(len(dynamoTables))
+
+	sugar.Infow("creating DynamoDB tables...", "num_tables", len(dynamoTables))
+	for _, dynamoTable := range dynamoTables {
+		go func(table string) {
+			sugar.Debugw("creating table", "table", table)
+			e := createTable(dynamoClient, table, waitTime)
+			if e != nil {
+				errCh <- fmt.Errorf(`error creating DynamoDB table "%s": %w`, table, err)
+			}
+			wg.Done()
+		}(dynamoTable)
+	}
+
+	go func() {
+		wg.Wait()
+		close(wgDone)
+	}()
+
+	select {
+	case err = <-errCh:
+		sugar.Fatalw("error creating tables", "error", err.Error())
+	case <-wgDone:
+		break
+	}
+
+	sugar.Info("successfully created DynamoDb tables")
 	sugar.Infow("starting server", "address", address, "port", port)
 
 	e := echo.New()
@@ -90,4 +134,16 @@ func init() {
 	viper.BindEnv(addressFlag, addressEnv)
 	viper.BindEnv(jwtSecretFlag, jwtSecretEnv)
 	viper.BindEnv(awsRegionFlag, awsRegionEnv)
+}
+
+func initDynamoClient() {
+
+}
+
+func createTable(client *dynamodb.Client, tableName string, waitTime time.Duration) error {
+	waiter := dynamodb.NewTableExistsWaiter(client)
+	params := &dynamodb.DescribeTableInput{
+		TableName: &tableName,
+	}
+	return waiter.Wait(context.TODO(), params, waitTime)
 }

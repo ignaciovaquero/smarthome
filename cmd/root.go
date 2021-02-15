@@ -46,6 +46,7 @@ func init() {
 	viper.BindPFlag(verboseFlag, rootCmd.PersistentFlags().Lookup(verboseFlag))
 	if err := initLogger(); err != nil {
 		fmt.Printf("%+v\n", err)
+		os.Exit(1)
 	}
 }
 
