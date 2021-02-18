@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -63,39 +61,6 @@ func serve(cmd *cobra.Command, args []string) {
 
 	sugar.Debugw("creating DynamoDB client", "region", region)
 	dynamoClient := dynamodb.NewFromConfig(cfg)
-	waitTime := 7 * time.Minute
-	dynamoTables := []string{"Home", "Indoor Temperature", "Outdoor Temperature"}
-
-	errCh := make(chan error)
-	wgDone := make(chan bool, 1)
-	wg := &sync.WaitGroup{}
-	wg.Add(len(dynamoTables))
-
-	sugar.Infow("creating DynamoDB tables...", "num_tables", len(dynamoTables))
-	for _, dynamoTable := range dynamoTables {
-		go func(table string) {
-			sugar.Debugw("creating table", "table", table)
-			e := createTable(dynamoClient, table, waitTime)
-			if e != nil {
-				errCh <- fmt.Errorf(`error creating DynamoDB table "%s": %w`, table, err)
-			}
-			wg.Done()
-		}(dynamoTable)
-	}
-
-	go func() {
-		wg.Wait()
-		close(wgDone)
-	}()
-
-	select {
-	case err = <-errCh:
-		sugar.Fatalw("error creating tables", "error", err.Error())
-	case <-wgDone:
-		break
-	}
-
-	sugar.Info("successfully created DynamoDb tables")
 	sugar.Infow("starting server", "address", address, "port", port)
 
 	e := echo.New()
@@ -138,12 +103,4 @@ func init() {
 
 func initDynamoClient() {
 
-}
-
-func createTable(client *dynamodb.Client, tableName string, waitTime time.Duration) error {
-	waiter := dynamodb.NewTableExistsWaiter(client)
-	params := &dynamodb.DescribeTableInput{
-		TableName: &tableName,
-	}
-	return waiter.Wait(context.TODO(), params, waitTime)
 }
