@@ -8,7 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/igvaquero18/smarthome/api"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -17,17 +16,19 @@ import (
 )
 
 const (
-	portEnv      = "SMARTHOME_SERVER_PORT"
-	addressEnv   = "SMARTHOME_LISTEN_ADDRESS"
-	jwtSecretEnv = "SMARTHOME_JWT_SECRET"
-	awsRegionEnv = "SMARTHOME_AWS_REGION"
+	portEnv             = "SMARTHOME_SERVER_PORT"
+	addressEnv          = "SMARTHOME_LISTEN_ADDRESS"
+	jwtSecretEnv        = "SMARTHOME_JWT_SECRET"
+	awsRegionEnv        = "SMARTHOME_AWS_REGION"
+	dynamoDBEndpointEnv = "SMARTHOME_DYNAMODB_ENDPOINT"
 )
 
 const (
-	portFlag      = "server.port"
-	addressFlag   = "server.address"
-	jwtSecretFlag = "server.jwt.secret"
-	awsRegionFlag = "aws.region"
+	portFlag             = "server.port"
+	addressFlag          = "server.address"
+	jwtSecretFlag        = "server.jwt.secret"
+	awsRegionFlag        = "aws.region"
+	dynamoDBEndpointFlag = "aws.dynamodb.endpoint"
 )
 
 const apiVersion string = "v1"
@@ -45,18 +46,16 @@ var (
 )
 
 func serve(cmd *cobra.Command, args []string) {
+	region := viper.GetString(awsRegionFlag)
+	dynamoDBEndpoint := viper.GetString(dynamoDBEndpointFlag)
+	jwtSecret := viper.GetString(jwtSecretFlag)
 	address := viper.GetString(addressFlag)
 	port := viper.GetInt(portFlag)
-	jwtSecret := viper.GetString(jwtSecretFlag)
-	region := viper.GetString(awsRegionFlag)
-	a := api.NewAPI(api.SetLogger(sugar))
-	cfg, err := config.LoadDefaultConfig(
-		context.TODO(),
-		config.WithRegion(region),
-		config.WithEndpointResolver(aws.NewConfig().EndpointResolver),
-	)
+
+	sugar.Infow("creating DynamoDB client", "region", region, "url", dynamoDBEndpoint)
+	dynamoClient, err := initDynamoClient(region, dynamoDBEndpoint)
 	if err != nil {
-		sugar.Fatalw("error loading aws configuration", "error", err.Error())
+		sugar.Fatalw("error creating DynamoDB client", "error", err.Error())
 	}
 
 	sugar.Debugw("creating DynamoDB client", "region", region)
@@ -83,24 +82,53 @@ func serve(cmd *cobra.Command, args []string) {
 	p := prometheus.NewPrometheus("smarthome", nil)
 	p.Use(e)
 
+	sugar.Infow("starting server", "address", address, "port", port)
 	sugar.Fatal(e.Start(fmt.Sprintf("%s:%d", address, port)))
 }
 
 func init() {
 	rootCmd.AddCommand(serveCmd)
 
-	serveCmd.PersistentFlags().IntP("port", "p", 8080, "port where to listen on")
-	serveCmd.PersistentFlags().StringP("address", "a", "0.0.0.0", "address where to bind to")
-	serveCmd.PersistentFlags().StringP("aws-region", "r", "us-west-1", "AWS region for DynamoDB")
-	viper.BindPFlag(portFlag, serveCmd.PersistentFlags().Lookup("port"))
-	viper.BindPFlag(addressFlag, serveCmd.PersistentFlags().Lookup("address"))
-	viper.BindPFlag(awsRegionFlag, serveCmd.PersistentFlags().Lookup("aws-region"))
+	serveCmd.Flags().IntP("port", "p", 8080, "port where to listen on")
+	serveCmd.Flags().StringP("address", "a", "0.0.0.0", "address where to bind to")
+	serveCmd.Flags().StringP("aws-region", "r", "us-west-1", "AWS region for DynamoDB")
+	serveCmd.Flags().StringP("dynamodb-endpoint", "d", "", "DynamoDB endpoint")
+	viper.BindPFlag(portFlag, serveCmd.Flags().Lookup("port"))
+	viper.BindPFlag(addressFlag, serveCmd.Flags().Lookup("address"))
+	viper.BindPFlag(awsRegionFlag, serveCmd.Flags().Lookup("aws-region"))
+	viper.BindPFlag(dynamoDBEndpointFlag, serveCmd.Flags().Lookup("dynamodb-endpoint"))
 	viper.BindEnv(portFlag, portEnv)
 	viper.BindEnv(addressFlag, addressEnv)
 	viper.BindEnv(jwtSecretFlag, jwtSecretEnv)
 	viper.BindEnv(awsRegionFlag, awsRegionEnv)
+	viper.BindEnv(dynamoDBEndpointFlag, dynamoDBEndpointEnv)
 }
 
-func initDynamoClient() {
+func initDynamoClient(region, url string) (*dynamodb.Client, error) {
+	var cfg aws.Config
+	var err error
 
+	if url == "" {
+		cfg, err = config.LoadDefaultConfig(
+			context.TODO(),
+			config.WithRegion(region),
+		)
+	} else {
+		customResolver := aws.EndpointResolverFunc(func(service, awsRegion string) (aws.Endpoint, error) {
+			return aws.Endpoint{
+				PartitionID:   "aws",
+				URL:           url,
+				SigningRegion: awsRegion,
+			}, nil
+		})
+		cfg, err = config.LoadDefaultConfig(
+			context.TODO(),
+			config.WithRegion(region),
+			config.WithEndpointResolver(customResolver),
+		)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error loading aws configuration: %w", err)
+	}
+	return dynamodb.NewFromConfig(cfg), nil
 }

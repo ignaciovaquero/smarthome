@@ -12,7 +12,7 @@ import (
 
 const (
 	configFlag  = "config"
-	verboseFlag = "verbose"
+	verboseFlag = "logging.verbose"
 )
 
 var (
@@ -40,14 +40,17 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringP(configFlag, "c", "", `config file (default "./smarthome.yaml")`)
-	rootCmd.PersistentFlags().BoolP(verboseFlag, "v", false, "verbose logging (default false)")
-	viper.BindPFlag(configFlag, rootCmd.PersistentFlags().Lookup(configFlag))
-	viper.BindPFlag(verboseFlag, rootCmd.PersistentFlags().Lookup(verboseFlag))
-	if err := initLogger(); err != nil {
+	rootCmd.PersistentFlags().StringP("config", "c", "", `config file (default "./smarthome.yaml")`)
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "verbose logging (default false)")
+	viper.BindPFlag(configFlag, rootCmd.PersistentFlags().Lookup("config"))
+	viper.BindPFlag(verboseFlag, rootCmd.PersistentFlags().Lookup("verbose"))
+
+	logger, err := zap.NewProduction()
+	if err != nil {
 		fmt.Printf("%+v\n", err)
-		os.Exit(1)
 	}
+	defer logger.Sync()
+	sugar = logger.Sugar()
 }
 
 func initLogger() error {
@@ -89,5 +92,10 @@ func initConfig() {
 	}
 	if err := viper.ReadInConfig(); err == nil {
 		sugar.Debugw("using config file", "config_file", viper.ConfigFileUsed())
+	}
+
+	if err := initLogger(); err != nil {
+		fmt.Printf("%+v\n", err)
+		os.Exit(1)
 	}
 }

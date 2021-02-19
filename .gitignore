@@ -2,3 +2,5 @@ docker
 terraform/secrets.auto.tfvars
 .terraform.lock.hcl
 .terraform
+.env
+smarthome
