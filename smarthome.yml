@@ -6,6 +6,7 @@ aws:
   region: eu-west-3
   dynamodb:
     endpoint: http://127.0.0.1:8000
+    table: SmartHome
 
 logging:
   verbose: true

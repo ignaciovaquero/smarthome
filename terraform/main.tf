@@ -18,15 +18,11 @@ provider "aws" {
 }
 
 module "smarthome_table" {
+  for_each = {for table in var.dynamo_db_tables: table.name => table}
   source = "./modules/dynamodb_table"
 
-  table_name = "SmartHome"
-  hash_key = "Room"
+  table_name = each.value.name
+  hash_key = each.value.hash_key
 
-  attributes = [
-    {
-      name = "Room"
-      type = "S"
-    }
-  ]
+  attributes = each.value.attributes
 }

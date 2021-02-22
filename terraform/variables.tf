@@ -21,7 +21,7 @@ variable "dynamodb_endpoint" {
 }
 
 variable "dynamo_db_tables" {
-  type list(object({
+  type = list(object({
     name = string
     hash_key = string
     attributes = list(object({
@@ -33,11 +33,11 @@ variable "dynamo_db_tables" {
   default = [
     {
       name = "SmartHome"
-      hash_key = "Room"
+      hash_key = "room"
 
       attributes = [
         {
-          name = "Room"
+          name = "room"
           type = "S"
         }
       ]
