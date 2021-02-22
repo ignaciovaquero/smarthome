@@ -53,7 +53,9 @@ func SetDynamoDBClient(client *dynamodb.Client) Option {
 func SetTableName(name string) Option {
 	return func(a *API) Option {
 		prev := a.TableName
-		a.TableName = name
+		if name != "" {
+			a.TableName = name
+		}
 		return SetTableName(prev)
 	}
 }

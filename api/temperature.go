@@ -51,7 +51,7 @@ func (a *API) AutoAdjustTemperature(c echo.Context) error {
 	_, err := a.PutItem(context.TODO(), &dynamodb.PutItemInput{
 		TableName: &a.TableName,
 		Item: map[string]types.AttributeValue{
-			"Room":          &types.AttributeValueMemberS{Value: string(room)},
+			"room":          &types.AttributeValueMemberS{Value: string(room)},
 			"enabled":       &types.AttributeValueMemberBOOL{Value: r.Enabled},
 			"threshold_on":  &types.AttributeValueMemberS{Value: fmt.Sprintf("%f", r.ThresholdOn)},
 			"threshold_off": &types.AttributeValueMemberS{Value: fmt.Sprintf("%f", r.ThresholdOff)},

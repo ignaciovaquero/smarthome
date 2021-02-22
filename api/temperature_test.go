@@ -15,7 +15,7 @@ func TestIsValid(t *testing.T) {
 	}{
 		{
 			name:     "Test home room",
-			room:     "home",
+			room:     "all",
 			expected: true,
 		},
 		{
@@ -24,8 +24,8 @@ func TestIsValid(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "Test hall room",
-			room:     "hall",
+			name:     "Test living room",
+			room:     "livingroom",
 			expected: true,
 		},
 		{
@@ -35,7 +35,7 @@ func TestIsValid(t *testing.T) {
 		},
 		{
 			name:     "Test empty room",
-			room:     "empty",
+			room:     "",
 			expected: false,
 		},
 	}
