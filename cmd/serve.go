@@ -81,8 +81,9 @@ func serve(cmd *cobra.Command, args []string) {
 		sugar.Warn("no jwt secret provided, disabling authentication")
 	}
 
-	autotune := e.Group(fmt.Sprintf("%s/autoadjust", apiVersion))
-	autotune.POST("/:room", a.AutoAdjustTemperature)
+	room := e.Group(fmt.Sprintf("%s/room", apiVersion))
+	room.POST("/:room", a.SetTemperatureOptions)
+	room.GET("/:room", a.GetTemperatureOptions)
 	p := prometheus.NewPrometheus("smarthome", nil)
 	p.Use(e)
 

@@ -16,9 +16,15 @@ const roomParam = "room"
 var validRooms = []Room{"all", "bedroom", "livingroom"}
 
 type roomItem struct {
-	Enabled      bool    `json:"enabled,omitempty"`
-	ThresholdOn  float32 `json:"threshold_on,omitempty"`
-	ThresholdOff float32 `json:"threshold_off,omitempty"`
+	Enabled      bool    `json:"enabled"`
+	ThresholdOn  float32 `json:"threshold_on"`
+	ThresholdOff float32 `json:"threshold_off"`
+}
+
+type errorResponse struct {
+	Message string      `json:"message"`
+	Code    int         `json:"status_code"`
+	Params  interface{} `json:"params,omitempty"`
 }
 
 // Room is a wrapper around the string type to define what
@@ -35,17 +41,41 @@ func (r Room) IsValid() bool {
 	return false
 }
 
-// AutoAdjustTemperature can enable or disable automating temperature
+// SetTemperatureOptions can enable or disable automating temperature
 // adjust for a particular room or the whole home.
-func (a *API) AutoAdjustTemperature(c echo.Context) error {
-	var room Room
-	room = Room(c.Param(roomParam))
+func (a *API) SetTemperatureOptions(c echo.Context) error {
+	room := Room(c.Param(roomParam))
 	if !room.IsValid() {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid room name provided")
+		return c.JSON(http.StatusBadRequest, errorResponse{
+			Message: "invalid room name provided",
+			Code:    http.StatusBadRequest,
+			Params: struct {
+				Name string `json:"room_name"`
+			}{
+				Name: string(room),
+			},
+		})
 	}
 	r := new(roomItem)
 	if err := json.NewDecoder(c.Request().Body).Decode(&r); err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		return c.JSON(http.StatusBadRequest, errorResponse{
+			Message: err.Error(),
+			Code:    http.StatusBadRequest,
+		})
+	}
+
+	if r.ThresholdOn >= r.ThresholdOff {
+		return c.JSON(http.StatusBadRequest, errorResponse{
+			Message: "threshold_on should be lower or equal to threshold_off",
+			Code:    http.StatusBadRequest,
+			Params: struct {
+				ThresholdOn  float32 `json:"threshold_on"`
+				ThresholdOff float32 `json:"threshold_off"`
+			}{
+				ThresholdOn:  r.ThresholdOn,
+				ThresholdOff: r.ThresholdOff,
+			},
+		})
 	}
 
 	_, err := a.PutItem(context.TODO(), &dynamodb.PutItemInput{
@@ -59,13 +89,49 @@ func (a *API) AutoAdjustTemperature(c echo.Context) error {
 	})
 
 	if err != nil {
-		return echo.NewHTTPError(
-			http.StatusInternalServerError,
-			fmt.Sprintf("error putting value in DynamoDB: %s", err.Error()),
-		)
+		return c.JSON(http.StatusInternalServerError, errorResponse{
+			Message: fmt.Sprintf("error putting value in DynamoDB: %s", err.Error()),
+			Code:    http.StatusInternalServerError,
+		})
 	}
 
-	a.Infow("successfully added item to database", "item", r)
+	return c.JSON(http.StatusOK, struct {
+		Message string   `json:"message"`
+		Code    int      `json:"status_code"`
+		Item    roomItem `json:"item"`
+	}{
+		Message: "successfully added item to database",
+		Code:    http.StatusOK,
+		Item:    *r,
+	})
+}
 
-	return nil
+// GetTemperatureOptions Gets the current temperature options for a given valid room
+func (a *API) GetTemperatureOptions(c echo.Context) error {
+	room := Room(c.Param(roomParam))
+	if !room.IsValid() {
+		return c.JSON(http.StatusBadRequest, errorResponse{
+			Message: "invalid room name provided",
+			Code:    http.StatusBadRequest,
+			Params: struct {
+				Name string `json:"room_name"`
+			}{
+				Name: string(room),
+			},
+		})
+	}
+
+	output, err := a.GetItem(context.TODO(), &dynamodb.GetItemInput{
+		Key:       map[string]types.AttributeValue{"room": &types.AttributeValueMemberS{Value: string(room)}},
+		TableName: &a.TableName,
+	})
+
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, errorResponse{
+			Message: fmt.Sprintf("error getting value from DynamoDB: %s", err.Error()),
+			Code:    http.StatusInternalServerError,
+		})
+	}
+
+	return c.JSON(http.StatusOK, output.Item)
 }

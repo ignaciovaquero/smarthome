@@ -1,8 +1,12 @@
 package api
 
 import (
+	"context"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -86,4 +90,58 @@ func TestSetTableName(t *testing.T) {
 			assert.Equal(tt, tc.expected, actual)
 		})
 	}
+}
+
+func TestSetDynamoDBClient(t *testing.T) {
+	localClient := getLocalClient()
+	testCases := []struct {
+		name     string
+		client   *dynamodb.Client
+		expected *API
+	}{
+		{
+			name:   "Set local DynamoDB Client",
+			client: localClient,
+			expected: &API{
+				Logger:    &DefaultLogger{},
+				TableName: DefaultTableName,
+				Client:    localClient,
+			},
+		},
+		{
+			name: "Don't set anything DynamoDB Client",
+			expected: &API{
+				Logger:    &DefaultLogger{},
+				TableName: DefaultTableName,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			var actual *API
+			if tc.client != nil {
+				actual = NewAPI(SetDynamoDBClient(tc.client))
+			} else {
+				actual = NewAPI()
+			}
+			assert.Equal(tt, tc.expected, actual)
+		})
+	}
+}
+
+func getLocalClient() *dynamodb.Client {
+	customResolver := aws.EndpointResolverFunc(func(service, awsRegion string) (aws.Endpoint, error) {
+		return aws.Endpoint{
+			PartitionID:   "aws",
+			URL:           "http://127.0.0.1:8000",
+			SigningRegion: awsRegion,
+		}, nil
+	})
+	cfg, _ := config.LoadDefaultConfig(
+		context.TODO(),
+		config.WithRegion("us-east-1"),
+		config.WithEndpointResolver(customResolver),
+	)
+	return dynamodb.NewFromConfig(cfg)
 }
