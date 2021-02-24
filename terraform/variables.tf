@@ -32,12 +32,34 @@ variable "dynamo_db_tables" {
 
   default = [
     {
-      name = "SmartHome"
+      name = "ControlPlane"
       hash_key = "room"
 
       attributes = [
         {
           name = "room"
+          type = "S"
+        }
+      ]
+    },
+    {
+      name = "TemperatureOutside"
+      hash_key = "date"
+
+      attributes = [
+        {
+          name = "date"
+          type = "S"
+        }
+      ]
+    },
+    {
+      name = "TemperatureInside"
+      hash_key = "date"
+
+      attributes = [
+        {
+          name = "date"
           type = "S"
         }
       ]

@@ -10,82 +10,129 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var defaultConfig *SmartHomeConfig = &SmartHomeConfig{
+	ControlPlaneTable: DefaultControlPlaneTable,
+	TempOutsideTable:  DefaultTempOutsideTable,
+	TempInsideTable:   DefaultTempInsideTable,
+}
+
 func TestSetLogger(t *testing.T) {
 	testCases := []struct {
 		name     string
 		logger   Logger
-		expected *API
+		expected *SmartHome
 	}{
 		{
 			name: "Testing non setting anything",
-			expected: &API{
-				Logger:    &DefaultLogger{},
-				TableName: DefaultTableName,
+			expected: &SmartHome{
+				Logger: &DefaultLogger{},
+				Config: defaultConfig,
 			},
 			logger: nil,
 		},
 		{
 			name: "Testing setting a default Logger",
-			expected: &API{
-				Logger:    &DefaultLogger{},
-				TableName: DefaultTableName,
+			expected: &SmartHome{
+				Logger: &DefaultLogger{},
+				Config: defaultConfig,
 			},
 			logger: &DefaultLogger{},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(tt *testing.T) {
-			actual := NewAPI(SetLogger(tc.logger))
+			actual := NewSmartHome(SetLogger(tc.logger))
 			assert.Equal(tt, tc.expected, actual)
 		})
 	}
 }
 
-func TestSetTableName(t *testing.T) {
+func TestSetConfig(t *testing.T) {
 	testCases := []struct {
-		name      string
-		tableName func() *string
-		expected  *API
+		name     string
+		config   *SmartHomeConfig
+		expected *SmartHome
 	}{
 		{
-			name: "Testing setting a custom name",
-			tableName: func() *string {
-				s := "custom"
-				return &s
+			name: "Testing setting custom names for all tables",
+			config: &SmartHomeConfig{
+				ControlPlaneTable: "Control",
+				TempOutsideTable:  "Outside",
+				TempInsideTable:   "Inside",
 			},
-			expected: &API{
-				Logger:    &DefaultLogger{},
-				TableName: "custom",
-			},
-		},
-		{
-			name: "Testing setting an empty name",
-			tableName: func() *string {
-				s := ""
-				return &s
-			},
-			expected: &API{
-				Logger:    &DefaultLogger{},
-				TableName: DefaultTableName,
+			expected: &SmartHome{
+				Logger: &DefaultLogger{},
+				Config: &SmartHomeConfig{
+					ControlPlaneTable: "Control",
+					TempOutsideTable:  "Outside",
+					TempInsideTable:   "Inside",
+				},
 			},
 		},
 		{
-			name:      "Testing non setting anything",
-			tableName: func() *string { return nil },
-			expected: &API{
-				Logger:    &DefaultLogger{},
-				TableName: DefaultTableName,
+			name: "Testing setting an empty control table",
+			config: &SmartHomeConfig{
+				ControlPlaneTable: "",
+				TempOutsideTable:  DefaultTempOutsideTable,
+				TempInsideTable:   DefaultTempInsideTable,
+			},
+			expected: &SmartHome{
+				Logger: &DefaultLogger{},
+				Config: &SmartHomeConfig{
+					ControlPlaneTable: DefaultControlPlaneTable,
+					TempOutsideTable:  DefaultTempOutsideTable,
+					TempInsideTable:   DefaultTempInsideTable,
+				},
+			},
+		},
+		{
+			name: "Testing setting an empty temperature outside table",
+			config: &SmartHomeConfig{
+				ControlPlaneTable: DefaultControlPlaneTable,
+				TempOutsideTable:  "",
+				TempInsideTable:   DefaultTempInsideTable,
+			},
+			expected: &SmartHome{
+				Logger: &DefaultLogger{},
+				Config: &SmartHomeConfig{
+					ControlPlaneTable: DefaultControlPlaneTable,
+					TempOutsideTable:  DefaultTempOutsideTable,
+					TempInsideTable:   DefaultTempInsideTable,
+				},
+			},
+		},
+		{
+			name: "Testing setting an empty temperature inside table",
+			config: &SmartHomeConfig{
+				ControlPlaneTable: DefaultControlPlaneTable,
+				TempOutsideTable:  DefaultTempOutsideTable,
+				TempInsideTable:   "",
+			},
+			expected: &SmartHome{
+				Logger: &DefaultLogger{},
+				Config: &SmartHomeConfig{
+					ControlPlaneTable: DefaultControlPlaneTable,
+					TempOutsideTable:  DefaultTempOutsideTable,
+					TempInsideTable:   DefaultTempInsideTable,
+				},
+			},
+		},
+		{
+			name: "Testing non setting anything",
+			expected: &SmartHome{
+				Logger: &DefaultLogger{},
+				Config: defaultConfig,
 			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(tt *testing.T) {
-			var actual *API
-			if tc.tableName() != nil {
-				actual = NewAPI(SetTableName(*tc.tableName()))
+			var actual *SmartHome
+			if tc.config != nil {
+				actual = NewSmartHome(SetConfig(tc.config))
 			} else {
-				actual = NewAPI()
+				actual = NewSmartHome()
 			}
 			assert.Equal(tt, tc.expected, actual)
 		})
@@ -97,33 +144,33 @@ func TestSetDynamoDBClient(t *testing.T) {
 	testCases := []struct {
 		name     string
 		client   *dynamodb.Client
-		expected *API
+		expected *SmartHome
 	}{
 		{
 			name:   "Set local DynamoDB Client",
 			client: localClient,
-			expected: &API{
-				Logger:    &DefaultLogger{},
-				TableName: DefaultTableName,
-				Client:    localClient,
+			expected: &SmartHome{
+				Logger: &DefaultLogger{},
+				Config: defaultConfig,
+				Client: localClient,
 			},
 		},
 		{
 			name: "Don't set anything DynamoDB Client",
-			expected: &API{
-				Logger:    &DefaultLogger{},
-				TableName: DefaultTableName,
+			expected: &SmartHome{
+				Logger: &DefaultLogger{},
+				Config: defaultConfig,
 			},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(tt *testing.T) {
-			var actual *API
+			var actual *SmartHome
 			if tc.client != nil {
-				actual = NewAPI(SetDynamoDBClient(tc.client))
+				actual = NewSmartHome(SetDynamoDBClient(tc.client))
 			} else {
-				actual = NewAPI()
+				actual = NewSmartHome()
 			}
 			assert.Equal(tt, tc.expected, actual)
 		})

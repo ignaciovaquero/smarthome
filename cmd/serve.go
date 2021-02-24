@@ -17,21 +17,25 @@ import (
 )
 
 const (
-	portEnv             = "SMARTHOME_SERVER_PORT"
-	addressEnv          = "SMARTHOME_LISTEN_ADDRESS"
-	jwtSecretEnv        = "SMARTHOME_JWT_SECRET"
-	awsRegionEnv        = "SMARTHOME_AWS_REGION"
-	dynamoDBEndpointEnv = "SMARTHOME_DYNAMODB_ENDPOINT"
-	dynamoDBTableEnv    = "SMARTHOME_DYNAMODB_TABLE"
+	portEnv                 = "SMARTHOME_SERVER_PORT"
+	addressEnv              = "SMARTHOME_LISTEN_ADDRESS"
+	jwtSecretEnv            = "SMARTHOME_JWT_SECRET"
+	awsRegionEnv            = "SMARTHOME_AWS_REGION"
+	dynamoDBEndpointEnv     = "SMARTHOME_DYNAMODB_ENDPOINT"
+	dynamoDBControlTableEnv = "SMARTHOME_DYNAMODB_CONTROL_PLANE_TABLE"
+	dynamoDBOutsideTableEnv = "SMARTHOME_DYNAMODB_TEMPERATURE_OUTSIDE_TABLE"
+	dynamoDBInsideTableEnv  = "SMARTHOME_DYNAMODB_TEMPERATURE_INSIDE_TABLE"
 )
 
 const (
-	portFlag             = "server.port"
-	addressFlag          = "server.address"
-	jwtSecretFlag        = "server.jwt.secret"
-	awsRegionFlag        = "aws.region"
-	dynamoDBEndpointFlag = "aws.dynamodb.endpoint"
-	dynamoDBTableFlag    = "aws.dynamodb.table"
+	portFlag                 = "server.port"
+	addressFlag              = "server.address"
+	jwtSecretFlag            = "server.jwt.secret"
+	awsRegionFlag            = "aws.region"
+	dynamoDBEndpointFlag     = "aws.dynamodb.endpoint"
+	dynamoDBControlTableFlag = "aws.dynamodb.tables.control"
+	dynamoDBOutsideTableFlag = "aws.dynamodb.tables.outside"
+	dynamoDBInsideTableFlag  = "aws.dynamodb.tables.inside"
 )
 
 const apiVersion string = "v1"
@@ -54,7 +58,7 @@ func serve(cmd *cobra.Command, args []string) {
 	address := viper.GetString(addressFlag)
 	port := viper.GetInt(portFlag)
 	dynamoDBEndpoint := viper.GetString(dynamoDBEndpointFlag)
-	dynamoDBTable := viper.GetString(dynamoDBTableFlag)
+	dynamoDBControlTable := viper.GetString(dynamoDBControlTableFlag)
 
 	sugar.Infow("creating DynamoDB client", "region", region, "url", dynamoDBEndpoint)
 	dynamoClient, err := initDynamoClient(region, dynamoDBEndpoint)
@@ -62,7 +66,13 @@ func serve(cmd *cobra.Command, args []string) {
 		sugar.Fatalw("error creating DynamoDB client", "error", err.Error())
 	}
 
-	a := api.NewAPI(api.SetLogger(sugar), api.SetDynamoDBClient(dynamoClient), api.SetTableName(dynamoDBTable))
+	s := api.NewSmartHome(
+		api.SetLogger(sugar),
+		api.SetDynamoDBClient(dynamoClient),
+		api.SetConfig(&api.SmartHomeConfig{
+			ControlPlaneTable: dynamoDBControlTable,
+		}),
+	)
 
 	sugar.Infow("starting server", "address", address, "port", port)
 
@@ -82,8 +92,8 @@ func serve(cmd *cobra.Command, args []string) {
 	}
 
 	room := e.Group(fmt.Sprintf("%s/room", apiVersion))
-	room.POST("/:room", a.SetTemperatureOptions)
-	room.GET("/:room", a.GetTemperatureOptions)
+	room.POST("/:room", s.SetRoomOptions)
+	room.GET("/:room", s.GetRoomOptions)
 	p := prometheus.NewPrometheus("smarthome", nil)
 	p.Use(e)
 
@@ -98,18 +108,24 @@ func init() {
 	serveCmd.Flags().StringP("address", "a", "0.0.0.0", "address where to bind to")
 	serveCmd.Flags().StringP("aws-region", "r", "us-west-1", "AWS region for DynamoDB")
 	serveCmd.Flags().StringP("dynamodb-endpoint", "d", "", "DynamoDB endpoint")
-	serveCmd.Flags().StringP("dynamodb-table", "t", "", "DynamoDB table name")
+	serveCmd.Flags().String("dynamodb-control-table", "ControlPlane", "DynamoDB Control Plane table name")
+	serveCmd.Flags().String("dynamodb-outside-table", "TemperatureOutside", "DynamoDB Temperature Outside table name")
+	serveCmd.Flags().String("dynamodb-inside-table", "TemperatureInside", "DynamoDB Temperature Inside table name")
 	viper.BindPFlag(portFlag, serveCmd.Flags().Lookup("port"))
 	viper.BindPFlag(addressFlag, serveCmd.Flags().Lookup("address"))
 	viper.BindPFlag(awsRegionFlag, serveCmd.Flags().Lookup("aws-region"))
 	viper.BindPFlag(dynamoDBEndpointFlag, serveCmd.Flags().Lookup("dynamodb-endpoint"))
-	viper.BindPFlag(dynamoDBTableFlag, serveCmd.Flags().Lookup("dynamodb-table"))
+	viper.BindPFlag(dynamoDBControlTableFlag, serveCmd.Flags().Lookup("dynamodb-control-table"))
+	viper.BindPFlag(dynamoDBOutsideTableFlag, serveCmd.Flags().Lookup("dynamodb-outside-table"))
+	viper.BindPFlag(dynamoDBInsideTableFlag, serveCmd.Flags().Lookup("dynamodb-inside-table"))
 	viper.BindEnv(portFlag, portEnv)
 	viper.BindEnv(addressFlag, addressEnv)
 	viper.BindEnv(jwtSecretFlag, jwtSecretEnv)
 	viper.BindEnv(awsRegionFlag, awsRegionEnv)
 	viper.BindEnv(dynamoDBEndpointFlag, dynamoDBEndpointEnv)
-	viper.BindEnv(dynamoDBTableFlag, dynamoDBTableEnv)
+	viper.BindEnv(dynamoDBControlTableFlag, dynamoDBControlTableEnv)
+	viper.BindEnv(dynamoDBOutsideTableFlag, dynamoDBOutsideTableEnv)
+	viper.BindEnv(dynamoDBInsideTableFlag, dynamoDBInsideTableEnv)
 }
 
 func initDynamoClient(region, url string) (*dynamodb.Client, error) {

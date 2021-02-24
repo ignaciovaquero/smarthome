@@ -6,7 +6,10 @@ aws:
   region: eu-west-3
   dynamodb:
     endpoint: http://127.0.0.1:8000
-    table: SmartHome
+    tables:
+      control: ControlPlane
+      outside: TemperatureOutside
+      inside: TemperatureInside
 
 logging:
   verbose: true
