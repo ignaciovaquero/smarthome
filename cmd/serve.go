@@ -1,14 +1,12 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"os"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/igvaquero18/smarthome/api"
+	"github.com/igvaquero18/smarthome/controller"
+	"github.com/igvaquero18/smarthome/utils"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -59,19 +57,25 @@ func serve(cmd *cobra.Command, args []string) {
 	port := viper.GetInt(portFlag)
 	dynamoDBEndpoint := viper.GetString(dynamoDBEndpointFlag)
 	dynamoDBControlTable := viper.GetString(dynamoDBControlTableFlag)
+	dynamoDBOutsiteTable := viper.GetString(dynamoDBOutsideTableFlag)
+	dynamoDBInsiteTable := viper.GetString(dynamoDBInsideTableFlag)
 
 	sugar.Infow("creating DynamoDB client", "region", region, "url", dynamoDBEndpoint)
-	dynamoClient, err := initDynamoClient(region, dynamoDBEndpoint)
+	dynamoClient, err := utils.InitDynamoClient(region, dynamoDBEndpoint)
 	if err != nil {
 		sugar.Fatalw("error creating DynamoDB client", "error", err.Error())
 	}
 
-	s := api.NewSmartHome(
-		api.SetLogger(sugar),
-		api.SetDynamoDBClient(dynamoClient),
-		api.SetConfig(&api.SmartHomeConfig{
-			ControlPlaneTable: dynamoDBControlTable,
-		}),
+	s := api.NewClient(
+		controller.NewSmartHome(
+			controller.SetLogger(sugar),
+			controller.SetDynamoDBClient(dynamoClient),
+			controller.SetConfig(&controller.SmartHomeConfig{
+				ControlPlaneTable: dynamoDBControlTable,
+				TempOutsideTable:  dynamoDBOutsiteTable,
+				TempInsideTable:   dynamoDBInsiteTable,
+			}),
+		),
 	)
 
 	sugar.Infow("starting server", "address", address, "port", port)
@@ -106,11 +110,11 @@ func init() {
 
 	serveCmd.Flags().IntP("port", "p", 8080, "port where to listen on")
 	serveCmd.Flags().StringP("address", "a", "0.0.0.0", "address where to bind to")
-	serveCmd.Flags().StringP("aws-region", "r", "us-west-1", "AWS region for DynamoDB")
+	serveCmd.Flags().StringP("aws-region", "r", "us-east-1", "AWS region for DynamoDB")
 	serveCmd.Flags().StringP("dynamodb-endpoint", "d", "", "DynamoDB endpoint")
-	serveCmd.Flags().String("dynamodb-control-table", "ControlPlane", "DynamoDB Control Plane table name")
-	serveCmd.Flags().String("dynamodb-outside-table", "TemperatureOutside", "DynamoDB Temperature Outside table name")
-	serveCmd.Flags().String("dynamodb-inside-table", "TemperatureInside", "DynamoDB Temperature Inside table name")
+	serveCmd.Flags().String("dynamodb-control-table", controller.DefaultControlPlaneTable, "DynamoDB Control Plane table name")
+	serveCmd.Flags().String("dynamodb-outside-table", controller.DefaultTempOutsideTable, "DynamoDB Temperature Outside table name")
+	serveCmd.Flags().String("dynamodb-inside-table", controller.DefaultTempInsideTable, "DynamoDB Temperature Inside table name")
 	viper.BindPFlag(portFlag, serveCmd.Flags().Lookup("port"))
 	viper.BindPFlag(addressFlag, serveCmd.Flags().Lookup("address"))
 	viper.BindPFlag(awsRegionFlag, serveCmd.Flags().Lookup("aws-region"))
@@ -126,33 +130,4 @@ func init() {
 	viper.BindEnv(dynamoDBControlTableFlag, dynamoDBControlTableEnv)
 	viper.BindEnv(dynamoDBOutsideTableFlag, dynamoDBOutsideTableEnv)
 	viper.BindEnv(dynamoDBInsideTableFlag, dynamoDBInsideTableEnv)
-}
-
-func initDynamoClient(region, url string) (*dynamodb.Client, error) {
-	var cfg aws.Config
-	var err error
-
-	if url == "" {
-		cfg, err = config.LoadDefaultConfig(
-			context.TODO(),
-			config.WithRegion(region),
-		)
-	} else {
-		customResolver := aws.EndpointResolverFunc(func(service, awsRegion string) (aws.Endpoint, error) {
-			return aws.Endpoint{
-				PartitionID:   "aws",
-				URL:           url,
-				SigningRegion: awsRegion,
-			}, nil
-		})
-		cfg, err = config.LoadDefaultConfig(
-			context.TODO(),
-			config.WithRegion(region),
-			config.WithEndpointResolver(customResolver),
-		)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("error loading aws configuration: %w", err)
-	}
-	return dynamodb.NewFromConfig(cfg), nil
 }

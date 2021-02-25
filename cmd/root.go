@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/igvaquero18/smarthome/utils"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
@@ -53,36 +54,9 @@ func init() {
 	sugar = logger.Sugar()
 }
 
-func initLogger() error {
-	var zl *zap.Logger
-	cfg := zap.Config{
-		Development: false,
-		Sampling: &zap.SamplingConfig{
-			Initial:    100,
-			Thereafter: 100,
-		},
-		Encoding:         "json",
-		EncoderConfig:    zap.NewProductionEncoderConfig(),
-		OutputPaths:      []string{"stderr"},
-		ErrorOutputPaths: []string{"stderr"},
-	}
-	if viper.GetBool(verboseFlag) {
-		cfg.Level = zap.NewAtomicLevelAt(zap.DebugLevel)
-	} else {
-		cfg.Level = zap.NewAtomicLevelAt(zap.InfoLevel)
-	}
-	zl, err := cfg.Build()
-
-	if err != nil {
-		return fmt.Errorf("error when initializing logger: %w", err)
-	}
-
-	sugar = zl.Sugar()
-	sugar.Debug("logger initialization successful")
-	return nil
-}
-
 func initConfig() {
+	var err error
+
 	if cfgFile := viper.GetString(configFlag); cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	} else {
@@ -90,11 +64,11 @@ func initConfig() {
 		viper.SetConfigName("smarthome")
 		viper.SetConfigType("yml")
 	}
-	if err := viper.ReadInConfig(); err == nil {
+	if err = viper.ReadInConfig(); err == nil {
 		sugar.Debugw("using config file", "config_file", viper.ConfigFileUsed())
 	}
 
-	if err := initLogger(); err != nil {
+	if sugar, err = utils.InitSugaredLogger(viper.GetBool(verboseFlag)); err != nil {
 		fmt.Printf("%+v\n", err)
 		os.Exit(1)
 	}

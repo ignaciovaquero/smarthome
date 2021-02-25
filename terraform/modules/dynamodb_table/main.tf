@@ -7,8 +7,8 @@ resource "aws_dynamodb_table" "table" {
   #   - 25 read capacity units
   #   - 25 write capacity units
   # Here we are limiting read and write capacity to 20
-  read_capacity = 20
-  write_capacity = 20
+  read_capacity = 1
+  write_capacity = 1
   hash_key = var.hash_key
 
   dynamic "attribute" {

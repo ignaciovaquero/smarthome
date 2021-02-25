@@ -3,59 +3,46 @@ package api
 import (
 	"testing"
 
-	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestIsValid(t *testing.T) {
 	testCases := []struct {
 		name     string
-		room     Room
+		r        string
 		expected bool
 	}{
 		{
 			name:     "Test home room",
-			room:     "all",
+			r:        "all",
 			expected: true,
 		},
 		{
 			name:     "Test bedroom room",
-			room:     "bedroom",
+			r:        "bedroom",
 			expected: true,
 		},
 		{
 			name:     "Test living room",
-			room:     "livingroom",
+			r:        "livingroom",
 			expected: true,
 		},
 		{
 			name:     "Test invalid room",
-			room:     "invalid",
+			r:        "invalid",
 			expected: false,
 		},
 		{
 			name:     "Test empty room",
-			room:     "",
+			r:        "",
 			expected: false,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(tt *testing.T) {
-			actual := tc.room.IsValid()
+			room := validRoom(tc.r)
+			actual := room.isValid()
 			assert.Equal(tt, tc.expected, actual)
 		})
 	}
-}
-
-func TestSetRoomOptions(t *testing.T) {
-	testCases := []struct {
-		name     string
-		context  echo.Context
-		expected error
-	}{
-		{
-
-		},
-	}
-	_ = testCases
 }

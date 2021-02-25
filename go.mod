@@ -3,6 +3,7 @@ module github.com/igvaquero18/smarthome
 go 1.15
 
 require (
+	github.com/aws/aws-lambda-go v1.22.0
 	github.com/aws/aws-sdk-go-v2 v1.2.0
 	github.com/aws/aws-sdk-go-v2/config v1.1.1
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.1.1
@@ -19,7 +20,7 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/viper v1.7.1
-	github.com/stretchr/testify v1.4.0
+	github.com/stretchr/testify v1.6.1
 	github.com/valyala/fasttemplate v1.2.1 // indirect
 	go.uber.org/zap v1.10.0
 	golang.org/x/net v0.0.0-20201110031124-69a78807bb2b // indirect
