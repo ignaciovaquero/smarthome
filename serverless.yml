@@ -24,6 +24,22 @@ provider:
   name: aws
   runtime: go1.x
   region: eu-west-3
+  apiGateway:
+    apiKeySourceType: HEADER
+    apiKeys:
+      - name: smarthome
+        description: API Key for accessing SmartHome API
+    usagePlan:
+      quota:
+        limit: 30
+        offset: 0
+        period: DAY
+      throttle:
+        burstLimit: 100
+        rateLimit: 50
+  environment:
+    SMARTHOME_AWS_REGION: eu-west-3
+    SMARTHOME_JWT_SECRET: ${ssm:SMARTHOME_JWT_TOKEN~true}
 
 # you can overwrite defaults here
 #  stage: dev
@@ -56,24 +72,22 @@ functions:
       - http:
           path: room/{room}
           method: post
+          private: true
           request:
             parameters:
               paths:
                 room: true
-    environment:
-      SMARTHOME_AWS_REGION: eu-west-3
   getroom:
     handler: bin/getroom
     events:
       - http:
           path: room/{room}
           method: get
+          private: true
           request:
             parameters:
               paths:
                 room: true
-    environment:
-      SMARTHOME_AWS_REGION: eu-west-3
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
 #    Check the event documentation for details
