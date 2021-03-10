@@ -25,8 +25,8 @@ func (s *SmartHome) SetRoomOptions(room string, options *RoomOptions) error {
 		Item: map[string]types.AttributeValue{
 			"room":          &types.AttributeValueMemberS{Value: string(room)},
 			"enabled":       &types.AttributeValueMemberBOOL{Value: options.Enabled},
-			"threshold_on":  &types.AttributeValueMemberS{Value: fmt.Sprintf("%f", options.ThresholdOn)},
-			"threshold_off": &types.AttributeValueMemberS{Value: fmt.Sprintf("%f", options.ThresholdOff)},
+			"threshold_on":  &types.AttributeValueMemberN{Value: fmt.Sprintf("%.1f", options.ThresholdOn)},
+			"threshold_off": &types.AttributeValueMemberN{Value: fmt.Sprintf("%.1f", options.ThresholdOff)},
 		},
 	})
 
