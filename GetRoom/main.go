@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/igvaquero18/smarthome/controller"
 	"github.com/igvaquero18/smarthome/utils"
 	"github.com/spf13/viper"
@@ -113,6 +114,41 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 		return Response{
 			Body:       "Invalid room name",
 			StatusCode: http.StatusBadRequest,
+		}, nil
+	}
+
+	if room == "all" {
+		rooms := utils.AllButOne(validRooms, "all")
+		roomOpts := []map[string]types.AttributeValue{}
+		for _, roomName := range rooms {
+			item, err := c.GetRoomOptions(roomName)
+			if err != nil {
+				return Response{
+					Body:       fmt.Sprintf("Internal Server Error: %s", err.Error()),
+					StatusCode: http.StatusInternalServerError,
+				}, fmt.Errorf("error getting item from DynamoDB: %w", err)
+			}
+			if item == nil {
+				continue
+			}
+			roomOpts = append(roomOpts, item)
+		}
+
+		if len(roomOpts) == 0 {
+			return Response{
+				Body:       "Not found",
+				StatusCode: http.StatusNotFound,
+			}, nil
+		}
+		body, err := json.Marshal(roomOpts)
+		if err != nil {
+			return Response{
+				Body: fmt.Sprintf("Internal Server Error: %s", err.Error()),
+			}, fmt.Errorf("error marshalling response: %w", err)
+		}
+		return Response{
+			Body:       string(body),
+			StatusCode: http.StatusOK,
 		}, nil
 	}
 

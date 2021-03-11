@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/igvaquero18/smarthome/controller"
+	"github.com/igvaquero18/smarthome/utils"
 	"github.com/labstack/echo/v4"
 )
 
@@ -56,7 +58,7 @@ func (cl *Client) SetRoomOptions(c echo.Context) error {
 		})
 	}
 
-	if r.ThresholdOn >= r.ThresholdOff {
+	if r.ThresholdOn > r.ThresholdOff {
 		return c.JSON(http.StatusBadRequest, errorResponse{
 			Message: "threshold_on should be lower or equal to threshold_off",
 			Code:    http.StatusBadRequest,
@@ -70,17 +72,24 @@ func (cl *Client) SetRoomOptions(c echo.Context) error {
 		})
 	}
 
-	err := cl.SmartHomeInterface.SetRoomOptions(room, r)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, errorResponse{
-			Message: "Internal Server Error",
-			Code:    http.StatusInternalServerError,
-			Params: struct {
-				Error string `json:"error"`
-			}{
-				Error: err.Error(),
-			},
-		})
+	rooms := []string{room}
+
+	if room == "all" {
+		rooms = utils.AllButOne(validRooms, "all")
+	}
+
+	for _, roomName := range rooms {
+		if err := cl.SmartHomeInterface.SetRoomOptions(roomName, r); err != nil {
+			c.JSON(http.StatusInternalServerError, errorResponse{
+				Message: "Internal Server Error",
+				Code:    http.StatusInternalServerError,
+				Params: struct {
+					Error string `json:"error"`
+				}{
+					Error: err.Error(),
+				},
+			})
+		}
 	}
 
 	return c.JSON(http.StatusOK, struct {
@@ -110,6 +119,41 @@ func (cl *Client) GetRoomOptions(c echo.Context) error {
 				Room:       room,
 			},
 		})
+	}
+
+	if room == "all" {
+		rooms := utils.AllButOne(validRooms, "all")
+		roomOpts := []map[string]types.AttributeValue{}
+		for _, roomName := range rooms {
+			item, err := cl.SmartHomeInterface.GetRoomOptions(roomName)
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, errorResponse{
+					Message: "Internal Server Error",
+					Code:    http.StatusInternalServerError,
+					Params: struct {
+						Error string `json:"error"`
+					}{
+						Error: err.Error(),
+					},
+				})
+			}
+			if item == nil {
+				continue
+			}
+			roomOpts = append(roomOpts, item)
+		}
+		if len(roomOpts) == 0 {
+			return c.JSON(http.StatusNotFound, errorResponse{
+				Message: "Not found",
+				Code:    http.StatusNotFound,
+				Params: struct {
+					Room string `json:"room"`
+				}{
+					Room: string(room),
+				},
+			})
+		}
+		return c.JSON(http.StatusOK, roomOpts)
 	}
 
 	item, err := cl.SmartHomeInterface.GetRoomOptions(room)

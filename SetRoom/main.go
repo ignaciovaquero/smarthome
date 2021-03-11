@@ -125,18 +125,26 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 		}, nil
 	}
 
-	if r.ThresholdOn >= r.ThresholdOff {
+	if r.ThresholdOn > r.ThresholdOff {
 		return Response{
 			Body:       "threshold_on should be lower or equal to threshold_off",
 			StatusCode: http.StatusBadRequest,
 		}, nil
 	}
 
-	if err := c.SetRoomOptions(room, r); err != nil {
-		return Response{
-			Body:       fmt.Sprintf("Internal Server Error: %s", err.Error()),
-			StatusCode: http.StatusInternalServerError,
-		}, fmt.Errorf("error setting room options: %w", err)
+	rooms := []string{room}
+
+	if room == "all" {
+		rooms = utils.AllButOne(validRooms, "all")
+	}
+
+	for _, roomName := range rooms {
+		if err := c.SetRoomOptions(roomName, r); err != nil {
+			return Response{
+				Body:       fmt.Sprintf("Internal Server Error: %s", err.Error()),
+				StatusCode: http.StatusInternalServerError,
+			}, fmt.Errorf("error setting room options for room %s: %w", roomName, err)
+		}
 	}
 
 	return Response{
