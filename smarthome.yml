@@ -11,5 +11,8 @@ aws:
       outside: TemperatureOutside
       inside: TemperatureInside
 
+cors:
+  origins: "*"
+
 logging:
   verbose: true

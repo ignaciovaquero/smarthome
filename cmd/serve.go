@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/igvaquero18/smarthome/api"
 	"github.com/igvaquero18/smarthome/controller"
@@ -19,6 +20,7 @@ const (
 	addressEnv              = "SMARTHOME_LISTEN_ADDRESS"
 	jwtSecretEnv            = "SMARTHOME_JWT_SECRET"
 	awsRegionEnv            = "SMARTHOME_AWS_REGION"
+	corsOriginsEnv          = "SMARTHOME_CORS_ORIGINS"
 	dynamoDBEndpointEnv     = "SMARTHOME_DYNAMODB_ENDPOINT"
 	dynamoDBControlTableEnv = "SMARTHOME_DYNAMODB_CONTROL_PLANE_TABLE"
 	dynamoDBOutsideTableEnv = "SMARTHOME_DYNAMODB_TEMPERATURE_OUTSIDE_TABLE"
@@ -30,6 +32,7 @@ const (
 	addressFlag              = "server.address"
 	jwtSecretFlag            = "server.jwt.secret"
 	awsRegionFlag            = "aws.region"
+	corsOriginsFlag          = "cors.origins"
 	dynamoDBEndpointFlag     = "aws.dynamodb.endpoint"
 	dynamoDBControlTableFlag = "aws.dynamodb.tables.control"
 	dynamoDBOutsideTableFlag = "aws.dynamodb.tables.outside"
@@ -55,6 +58,7 @@ func serve(cmd *cobra.Command, args []string) {
 	jwtSecret := viper.GetString(jwtSecretFlag)
 	address := viper.GetString(addressFlag)
 	port := viper.GetInt(portFlag)
+	origins := strings.Split(viper.GetString(corsOriginsFlag), " ")
 	dynamoDBEndpoint := viper.GetString(dynamoDBEndpointFlag)
 	dynamoDBControlTable := viper.GetString(dynamoDBControlTableFlag)
 	dynamoDBOutsiteTable := viper.GetString(dynamoDBOutsideTableFlag)
@@ -89,6 +93,15 @@ func serve(cmd *cobra.Command, args []string) {
 		Output: os.Stdout,
 	}))
 
+	if len(origins) > 0 {
+		if err := utils.ValidateURLsFromArray(origins); err != nil {
+			sugar.Fatalw("invalid CORS URLs provided", "error", err.Error())
+		}
+		e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+			AllowOrigins: origins,
+		}))
+	}
+
 	if jwtSecret != "" {
 		e.Use(middleware.JWT([]byte(jwtSecret)))
 	} else {
@@ -115,6 +128,7 @@ func init() {
 	serveCmd.Flags().String("dynamodb-control-table", controller.DefaultControlPlaneTable, "DynamoDB Control Plane table name")
 	serveCmd.Flags().String("dynamodb-outside-table", controller.DefaultTempOutsideTable, "DynamoDB Temperature Outside table name")
 	serveCmd.Flags().String("dynamodb-inside-table", controller.DefaultTempInsideTable, "DynamoDB Temperature Inside table name")
+	serveCmd.Flags().String("cors-origins", "", "Space-separated list of CORS Origin URLs")
 	viper.BindPFlag(portFlag, serveCmd.Flags().Lookup("port"))
 	viper.BindPFlag(addressFlag, serveCmd.Flags().Lookup("address"))
 	viper.BindPFlag(awsRegionFlag, serveCmd.Flags().Lookup("aws-region"))
@@ -122,10 +136,12 @@ func init() {
 	viper.BindPFlag(dynamoDBControlTableFlag, serveCmd.Flags().Lookup("dynamodb-control-table"))
 	viper.BindPFlag(dynamoDBOutsideTableFlag, serveCmd.Flags().Lookup("dynamodb-outside-table"))
 	viper.BindPFlag(dynamoDBInsideTableFlag, serveCmd.Flags().Lookup("dynamodb-inside-table"))
+	viper.BindPFlag(corsOriginsFlag, serveCmd.Flags().Lookup("cors-origins"))
 	viper.BindEnv(portFlag, portEnv)
 	viper.BindEnv(addressFlag, addressEnv)
 	viper.BindEnv(jwtSecretFlag, jwtSecretEnv)
 	viper.BindEnv(awsRegionFlag, awsRegionEnv)
+	viper.BindEnv(corsOriginsFlag, corsOriginsEnv)
 	viper.BindEnv(dynamoDBEndpointFlag, dynamoDBEndpointEnv)
 	viper.BindEnv(dynamoDBControlTableFlag, dynamoDBControlTableEnv)
 	viper.BindEnv(dynamoDBOutsideTableFlag, dynamoDBOutsideTableEnv)
