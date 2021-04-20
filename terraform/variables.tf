@@ -43,6 +43,16 @@ variable "dynamo_db_tables" {
       ]
     },
     {
+      name = "Authentication"
+      hash_key = "username"
+      attributes = [
+        {
+          name = "username"
+          type = "S"
+        }
+      ]
+    },
+    {
       name = "TemperatureOutside"
       hash_key = "date"
 

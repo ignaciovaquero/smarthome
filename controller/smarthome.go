@@ -1,11 +1,17 @@
 package controller
 
 import (
+	"context"
+
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
 const (
+	// DefaultAuthTable is the default table name for the
+	// Authentication DynamoDB table.
+	DefaultAuthTable = "Authentication"
+
 	// DefaultControlPlaneTable is the default table name
 	// for the Control Plane DynamoDB table.
 	DefaultControlPlaneTable = "ControlPlane"
@@ -19,8 +25,9 @@ const (
 	DefaultTempInsideTable = "TemperatureInside"
 )
 
-// SmartHomeInterface is the interface implemented by the SmartHome API
+// SmartHomeInterface is the interface implemented by the SmartHome Controller
 type SmartHomeInterface interface {
+	GetCredentials(username string) (map[string]types.AttributeValue, error)
 	SetRoomOptions(room string, options *RoomOptions) error
 	GetRoomOptions(room string) (map[string]types.AttributeValue, error)
 }
@@ -36,6 +43,9 @@ type SmartHome struct {
 // SmartHomeConfig is a struct that allows to set all the configuration
 // options for the SmartHome API
 type SmartHomeConfig struct {
+	// AuthTable is the name of the Authentication table in DynamoDB
+	AuthTable string
+
 	// ControlPlaneTable is the name of the ControlPlane table in DynamoDB
 	ControlPlaneTable string
 
@@ -54,6 +64,7 @@ func NewSmartHome(opts ...Option) *SmartHome {
 	a := &SmartHome{
 		Logger: &DefaultLogger{},
 		Config: &SmartHomeConfig{
+			AuthTable:         DefaultAuthTable,
 			ControlPlaneTable: DefaultControlPlaneTable,
 			TempOutsideTable:  DefaultTempOutsideTable,
 			TempInsideTable:   DefaultTempInsideTable,
@@ -90,6 +101,10 @@ func SetConfig(c *SmartHomeConfig) Option {
 	return func(s *SmartHome) Option {
 		prev := s.Config
 
+		if c.AuthTable == "" {
+			c.AuthTable = DefaultAuthTable
+		}
+
 		if c.ControlPlaneTable == "" {
 			c.ControlPlaneTable = DefaultControlPlaneTable
 		}
@@ -105,4 +120,17 @@ func SetConfig(c *SmartHomeConfig) Option {
 		s.Config = c
 		return SetConfig(prev)
 	}
+}
+
+func (s *SmartHome) get(object, hashkey, table string) (map[string]types.AttributeValue, error) {
+	output, err := s.GetItem(context.TODO(), &dynamodb.GetItemInput{
+		Key:       map[string]types.AttributeValue{hashkey: &types.AttributeValueMemberS{Value: object}},
+		TableName: &table,
+	})
+
+	if err != nil {
+		return map[string]types.AttributeValue{}, err
+	}
+
+	return output.Item, nil
 }

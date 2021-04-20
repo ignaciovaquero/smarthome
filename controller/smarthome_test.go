@@ -11,6 +11,7 @@ import (
 )
 
 var defaultConfig *SmartHomeConfig = &SmartHomeConfig{
+	AuthTable:         DefaultAuthTable,
 	ControlPlaneTable: DefaultControlPlaneTable,
 	TempOutsideTable:  DefaultTempOutsideTable,
 	TempInsideTable:   DefaultTempInsideTable,
@@ -56,6 +57,7 @@ func TestSetConfig(t *testing.T) {
 		{
 			name: "Testing setting custom names for all tables",
 			config: &SmartHomeConfig{
+				AuthTable:         "Auth",
 				ControlPlaneTable: "Control",
 				TempOutsideTable:  "Outside",
 				TempInsideTable:   "Inside",
@@ -63,6 +65,7 @@ func TestSetConfig(t *testing.T) {
 			expected: &SmartHome{
 				Logger: &DefaultLogger{},
 				Config: &SmartHomeConfig{
+					AuthTable:         "Auth",
 					ControlPlaneTable: "Control",
 					TempOutsideTable:  "Outside",
 					TempInsideTable:   "Inside",
@@ -70,8 +73,27 @@ func TestSetConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "Testing setting an empty auth table",
+			config: &SmartHomeConfig{
+				AuthTable:         "",
+				ControlPlaneTable: DefaultControlPlaneTable,
+				TempOutsideTable:  DefaultTempOutsideTable,
+				TempInsideTable:   DefaultTempInsideTable,
+			},
+			expected: &SmartHome{
+				Logger: &DefaultLogger{},
+				Config: &SmartHomeConfig{
+					AuthTable:         DefaultAuthTable,
+					ControlPlaneTable: DefaultControlPlaneTable,
+					TempOutsideTable:  DefaultTempOutsideTable,
+					TempInsideTable:   DefaultTempInsideTable,
+				},
+			},
+		},
+		{
 			name: "Testing setting an empty control table",
 			config: &SmartHomeConfig{
+				AuthTable:         DefaultAuthTable,
 				ControlPlaneTable: "",
 				TempOutsideTable:  DefaultTempOutsideTable,
 				TempInsideTable:   DefaultTempInsideTable,
@@ -79,6 +101,7 @@ func TestSetConfig(t *testing.T) {
 			expected: &SmartHome{
 				Logger: &DefaultLogger{},
 				Config: &SmartHomeConfig{
+					AuthTable:         DefaultAuthTable,
 					ControlPlaneTable: DefaultControlPlaneTable,
 					TempOutsideTable:  DefaultTempOutsideTable,
 					TempInsideTable:   DefaultTempInsideTable,
@@ -88,6 +111,7 @@ func TestSetConfig(t *testing.T) {
 		{
 			name: "Testing setting an empty temperature outside table",
 			config: &SmartHomeConfig{
+				AuthTable:         DefaultAuthTable,
 				ControlPlaneTable: DefaultControlPlaneTable,
 				TempOutsideTable:  "",
 				TempInsideTable:   DefaultTempInsideTable,
@@ -95,6 +119,7 @@ func TestSetConfig(t *testing.T) {
 			expected: &SmartHome{
 				Logger: &DefaultLogger{},
 				Config: &SmartHomeConfig{
+					AuthTable:         DefaultAuthTable,
 					ControlPlaneTable: DefaultControlPlaneTable,
 					TempOutsideTable:  DefaultTempOutsideTable,
 					TempInsideTable:   DefaultTempInsideTable,
@@ -104,6 +129,7 @@ func TestSetConfig(t *testing.T) {
 		{
 			name: "Testing setting an empty temperature inside table",
 			config: &SmartHomeConfig{
+				AuthTable:         DefaultAuthTable,
 				ControlPlaneTable: DefaultControlPlaneTable,
 				TempOutsideTable:  DefaultTempOutsideTable,
 				TempInsideTable:   "",
@@ -111,6 +137,7 @@ func TestSetConfig(t *testing.T) {
 			expected: &SmartHome{
 				Logger: &DefaultLogger{},
 				Config: &SmartHomeConfig{
+					AuthTable:         DefaultAuthTable,
 					ControlPlaneTable: DefaultControlPlaneTable,
 					TempOutsideTable:  DefaultTempOutsideTable,
 					TempInsideTable:   DefaultTempInsideTable,

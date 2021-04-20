@@ -25,12 +25,6 @@ func (r validRoom) isValid() bool {
 	return false
 }
 
-type errorResponse struct {
-	Message string      `json:"message"`
-	Code    int         `json:"status_code"`
-	Params  interface{} `json:"params"`
-}
-
 // SetRoomOptions can enable or disable automating temperature
 // adjust for a particular room or the whole home.
 func (cl *Client) SetRoomOptions(c echo.Context) error {
