@@ -42,7 +42,7 @@ func (s *SmartHome) SetRoomOptions(room string, options *RoomOptions) error {
 // GetRoomOptions Gets the current temperature options for a given room
 func (s *SmartHome) GetRoomOptions(room string) (map[string]types.AttributeValue, error) {
 	s.Debugw("getting item from DynamoDB", "room", room)
-	roomOptions, err := s.get(room, "room", s.Config.ControlPlaneTable)
+	roomOptions, err := s.get("room", room, s.Config.ControlPlaneTable)
 	if err != nil {
 		return map[string]types.AttributeValue{}, fmt.Errorf("error getting room %s: %w", room, err)
 	}

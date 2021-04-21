@@ -27,7 +27,8 @@ const (
 
 // SmartHomeInterface is the interface implemented by the SmartHome Controller
 type SmartHomeInterface interface {
-	GetCredentials(username string) (map[string]types.AttributeValue, error)
+	Authenticate(username, password string) error
+	SetCredentials(username, password string) error
 	SetRoomOptions(room string, options *RoomOptions) error
 	GetRoomOptions(room string) (map[string]types.AttributeValue, error)
 }
@@ -122,7 +123,7 @@ func SetConfig(c *SmartHomeConfig) Option {
 	}
 }
 
-func (s *SmartHome) get(object, hashkey, table string) (map[string]types.AttributeValue, error) {
+func (s *SmartHome) get(hashkey, object, table string) (map[string]types.AttributeValue, error) {
 	output, err := s.GetItem(context.TODO(), &dynamodb.GetItemInput{
 		Key:       map[string]types.AttributeValue{hashkey: &types.AttributeValueMemberS{Value: object}},
 		TableName: &table,

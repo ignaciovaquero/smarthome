@@ -2,8 +2,11 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/labstack/echo/v4"
 )
 
@@ -22,5 +25,18 @@ func (cl *Client) Login(c echo.Context) error {
 		})
 	}
 
-	return nil
+	if err := cl.Authenticate(auth.Username, auth.Password); err != nil {
+		return c.JSON(http.StatusForbidden, errorResponse{
+			Message: fmt.Sprintf("Wrong username or password: %s", err.Error()),
+			Code: http.StatusForbidden,
+		})
+	}
+
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := token.Claims.(jwt.MapClaims)
+	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
+
+	// t, err := token.SignedString([]byte())
+
+	return c.JSON(http.StatusOK, i interface{})
 }
