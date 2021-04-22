@@ -6,28 +6,14 @@ import (
 
 // Client is the API client for SmartHome
 type Client struct {
+	JWTSecret string
 	controller.SmartHomeInterface
 }
 
 // NewClient returns a new SmartHome API Client
-func NewClient(smartHome controller.SmartHomeInterface) *Client {
-	return &Client{smartHome}
-}
-
-type itemNotFound interface {
-	NotFound() bool
-}
-
-func isNotFound(err error) bool {
-	notFound, ok := err.(itemNotFound)
-	return ok && notFound.NotFound()
-}
-
-type badRequest interface {
-	badRequest() bool
-}
-
-func isBadRequest(err error) bool {
-	br, ok := err.(badRequest)
-	return ok && br.badRequest()
+func NewClient(jwtSecret string, smartHome controller.SmartHomeInterface) *Client {
+	return &Client{
+		JWTSecret:          jwtSecret,
+		SmartHomeInterface: smartHome,
+	}
 }

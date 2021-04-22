@@ -18,7 +18,7 @@ service: smarthome
 
 # You can pin your service to only deploy with a specific Serverless version
 # Check out our docs for more details
-frameworkVersion: '2'
+frameworkVersion: "2"
 
 provider:
   name: aws
@@ -41,8 +41,8 @@ provider:
     SMARTHOME_AWS_REGION: eu-west-3
     SMARTHOME_JWT_SECRET: ${ssm:SMARTHOME_JWT_TOKEN~true}
 
-# you can overwrite defaults here
-#  stage: dev
+  # you can overwrite defaults here
+  #  stage: dev
 
   iam:
     role:
@@ -51,9 +51,12 @@ provider:
           Action:
             - "dynamodb:*"
           Resource:
-            Fn::Join:
-              - ""
-              - arn:aws:dynamodb:eu-west-3:106260645150:table/ControlPlane
+            - Fn::Join:
+                - ""
+                - arn:aws:dynamodb:eu-west-3:106260645150:table/ControlPlane
+            - Fn::Join:
+                - ""
+                - arn:aws:dynamodb:eu-west-3:106260645150:table/Authentication
 
 # you can define service wide environment variables here
 #  environment:
@@ -88,6 +91,21 @@ functions:
             parameters:
               paths:
                 room: true
+  login:
+    handler: bin/login
+    events:
+      - http:
+          path: login
+          method: post
+          private: true
+  signup:
+    handler: bin/signup
+    events:
+      - http:
+          path: signup
+          method: post
+          private: true
+
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
 #    Check the event documentation for details
@@ -183,7 +201,6 @@ resources:
     #     ProvisionedThroughput:
     #       ReadCapacityUnits: 1
     #       WriteCapacityUnits: 1
-
 # you can add CloudFormation resource templates here
 #resources:
 #  Resources:

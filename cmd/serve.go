@@ -74,6 +74,7 @@ func serve(cmd *cobra.Command, args []string) {
 	}
 
 	s := api.NewClient(
+		jwtSecret,
 		controller.NewSmartHome(
 			controller.SetLogger(sugar),
 			controller.SetDynamoDBClient(dynamoClient),
@@ -106,13 +107,14 @@ func serve(cmd *cobra.Command, args []string) {
 		}))
 	}
 
+	room := e.Group(fmt.Sprintf("%s/room", apiVersion))
 	if jwtSecret != "" {
-		e.Use(middleware.JWT([]byte(jwtSecret)))
+		room.Use(middleware.JWT([]byte(jwtSecret)))
+		e.POST(fmt.Sprintf("%s/login", apiVersion), s.Login)
+		e.POST(fmt.Sprintf("%s/signup", apiVersion), s.SignUp)
 	} else {
 		sugar.Warn("no jwt secret provided, disabling authentication")
 	}
-
-	room := e.Group(fmt.Sprintf("%s/room", apiVersion))
 	room.POST("/:room", s.SetRoomOptions)
 	room.GET("/:room", s.GetRoomOptions)
 	p := prometheus.NewPrometheus("smarthome", nil)

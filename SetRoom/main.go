@@ -14,32 +14,18 @@ import (
 	"go.uber.org/zap"
 )
 
-const roomParam = "room"
-
 const (
-	portEnv                 = "SMARTHOME_SERVER_PORT"
-	addressEnv              = "SMARTHOME_LISTEN_ADDRESS"
-	jwtSecretEnv            = "SMARTHOME_JWT_SECRET"
 	awsRegionEnv            = "SMARTHOME_AWS_REGION"
 	verboseEnv              = "SMARTHOME_VERBOSE"
 	dynamoDBEndpointEnv     = "SMARTHOME_DYNAMODB_ENDPOINT"
-	dynamoDBAuthTableEnv    = "SMARTHOME_DYNAMODB_AUTH_TABLE"
 	dynamoDBControlTableEnv = "SMARTHOME_DYNAMODB_CONTROL_PLANE_TABLE"
-	dynamoDBOutsideTableEnv = "SMARTHOME_DYNAMODB_TEMPERATURE_OUTSIDE_TABLE"
-	dynamoDBInsideTableEnv  = "SMARTHOME_DYNAMODB_TEMPERATURE_INSIDE_TABLE"
 )
 
 const (
-	portFlag                 = "server.port"
-	addressFlag              = "server.address"
-	jwtSecretFlag            = "server.jwt.secret"
 	awsRegionFlag            = "aws.region"
 	verboseFlag              = "logging.verbose"
 	dynamoDBEndpointFlag     = "aws.dynamodb.endpoint"
-	dynamoDBAuthTableFlag    = "aws.dynamodb.tables.auth"
 	dynamoDBControlTableFlag = "aws.dynamodb.tables.control"
-	dynamoDBOutsideTableFlag = "aws.dynamodb.tables.outside"
-	dynamoDBInsideTableFlag  = "aws.dynamodb.tables.inside"
 )
 
 var (
@@ -68,18 +54,11 @@ type Response events.APIGatewayProxyResponse
 func init() {
 	viper.SetDefault(awsRegionFlag, "us-west-1")
 	viper.SetDefault(dynamoDBEndpointFlag, "")
-	viper.SetDefault(dynamoDBAuthTableFlag, controller.DefaultAuthTable)
 	viper.SetDefault(dynamoDBControlTableFlag, controller.DefaultControlPlaneTable)
-	viper.SetDefault(dynamoDBOutsideTableFlag, controller.DefaultTempOutsideTable)
-	viper.SetDefault(dynamoDBInsideTableFlag, controller.DefaultTempInsideTable)
 	viper.SetDefault(verboseFlag, false)
-	viper.BindEnv(jwtSecretFlag, jwtSecretEnv)
 	viper.BindEnv(awsRegionFlag, awsRegionEnv)
 	viper.BindEnv(dynamoDBEndpointFlag, dynamoDBEndpointEnv)
-	viper.BindEnv(dynamoDBAuthTableFlag, dynamoDBAuthTableEnv)
 	viper.BindEnv(dynamoDBControlTableFlag, dynamoDBControlTableEnv)
-	viper.BindEnv(dynamoDBOutsideTableFlag, dynamoDBOutsideTableEnv)
-	viper.BindEnv(dynamoDBInsideTableFlag, dynamoDBInsideTableEnv)
 	viper.BindEnv(verboseFlag, verboseEnv)
 
 	sugar, err := utils.InitSugaredLogger(viper.GetBool(verboseFlag))
@@ -102,10 +81,7 @@ func init() {
 		controller.SetLogger(sugar),
 		controller.SetDynamoDBClient(dynamoClient),
 		controller.SetConfig(&controller.SmartHomeConfig{
-			AuthTable:         viper.GetString(dynamoDBAuthTableFlag),
 			ControlPlaneTable: viper.GetString(dynamoDBControlTableFlag),
-			TempOutsideTable:  viper.GetString(dynamoDBOutsideTableFlag),
-			TempInsideTable:   viper.GetString(dynamoDBInsideTableFlag),
 		}),
 	)
 }
