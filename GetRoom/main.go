@@ -16,6 +16,7 @@ import (
 )
 
 const (
+	jwtSecretEnv            = "SMARTHOME_JWT_SECRET"
 	awsRegionEnv            = "SMARTHOME_AWS_REGION"
 	verboseEnv              = "SMARTHOME_VERBOSE"
 	dynamoDBEndpointEnv     = "SMARTHOME_DYNAMODB_ENDPOINT"
@@ -23,6 +24,7 @@ const (
 )
 
 const (
+	jwtSecretFlag            = "server.jwt.secret"
 	awsRegionFlag            = "aws.region"
 	verboseFlag              = "logging.verbose"
 	dynamoDBEndpointFlag     = "aws.dynamodb.endpoint"
@@ -53,10 +55,12 @@ func (r validRoom) isValid() bool {
 type Response events.APIGatewayProxyResponse
 
 func init() {
+	viper.SetDefault(jwtSecretFlag, "")
 	viper.SetDefault(awsRegionFlag, "us-east-1")
 	viper.SetDefault(dynamoDBEndpointFlag, "")
 	viper.SetDefault(dynamoDBControlTableFlag, controller.DefaultControlPlaneTable)
 	viper.SetDefault(verboseFlag, false)
+	viper.BindEnv(jwtSecretFlag, jwtSecretEnv)
 	viper.BindEnv(awsRegionFlag, awsRegionEnv)
 	viper.BindEnv(dynamoDBEndpointFlag, dynamoDBEndpointEnv)
 	viper.BindEnv(dynamoDBControlTableFlag, dynamoDBControlTableEnv)
@@ -89,6 +93,13 @@ func init() {
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(request events.APIGatewayProxyRequest) (Response, error) {
+	if err := utils.ValidateTokenFromBody(request.Body, viper.GetString(jwtSecretFlag)); err != nil {
+		return Response{
+			Body:       fmt.Sprintf("Authentication failure: %s", err.Error()),
+			StatusCode: http.StatusForbidden,
+		}, nil
+	}
+
 	room := request.PathParameters["room"]
 
 	if !validRoom(room).isValid() {
