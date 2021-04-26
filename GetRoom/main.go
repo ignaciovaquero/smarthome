@@ -93,7 +93,7 @@ func init() {
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(request events.APIGatewayProxyRequest) (Response, error) {
-	if err := utils.ValidateTokenFromBody(request.Body, viper.GetString(jwtSecretFlag)); err != nil {
+	if err := utils.ValidateTokenFromHeader(request.Headers["Authorization"], viper.GetString(jwtSecretFlag)); err != nil {
 		return Response{
 			Body:       fmt.Sprintf("Authentication failure: %s", err.Error()),
 			StatusCode: http.StatusForbidden,

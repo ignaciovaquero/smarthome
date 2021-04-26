@@ -1,32 +1,29 @@
 package utils
 
 import (
-	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/dgrijalva/jwt-go"
 )
 
-type token struct {
-	Token string `json:"token"`
-}
-
-// ValidateTokenFromBody validates a JWT token from a request body, with
+// ValidateTokenFromHeader validates a JWT token from an Authorization header, with
 // the secret used to sign the token.
-func ValidateTokenFromBody(body, secret string) error {
+func ValidateTokenFromHeader(header, secret string) error {
 	if secret == "" {
 		return nil
 	}
 
-	t := new(token)
+	splitToken := strings.Split(header, "Bearer")
 
-	if err := json.Unmarshal([]byte(body), &t); err != nil {
-		return fmt.Errorf("error unmarshalling the token: %w", err)
+	if len(splitToken) != 2 {
+		return fmt.Errorf("error getting token from Authorization header: header is not in proper format")
 	}
 
-	tok, err := jwt.Parse(t.Token, func(to *jwt.Token) (interface{}, error) {
+	tok, err := jwt.Parse(strings.Trim(splitToken[1], " "), func(t *jwt.Token) (interface{}, error) {
 		return []byte(secret), nil
 	})
+
 	if err != nil {
 		return fmt.Errorf("error parsing token: %w", err)
 	}
