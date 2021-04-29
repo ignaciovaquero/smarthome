@@ -17,6 +17,7 @@ import (
 const (
 	awsRegionEnv         = "SMARTHOME_AWS_REGION"
 	verboseEnv           = "SMARTHOME_VERBOSE"
+	corsOriginsEnv       = "SMARTHOME_CORS_ORIGINS"
 	dynamoDBEndpointEnv  = "SMARTHOME_DYNAMODB_ENDPOINT"
 	dynamoDBAuthTableEnv = "SMARTHOME_DYNAMODB_AUTH_TABLE"
 )
@@ -24,6 +25,7 @@ const (
 const (
 	awsRegionFlag         = "aws.region"
 	verboseFlag           = "logging.verbose"
+	corsOriginsFlag       = "cors.origins"
 	dynamoDBEndpointFlag  = "aws.dynamodb.endpoint"
 	dynamoDBAuthTableFlag = "aws.dynamodb.tables.auth"
 )
@@ -45,14 +47,16 @@ type auth struct {
 type Response events.APIGatewayProxyResponse
 
 func init() {
-	viper.SetDefault(awsRegionFlag, "us-east-1")
+	viper.SetDefault(awsRegionFlag, "us-east-3")
+	viper.SetDefault(verboseFlag, false)
+	viper.SetDefault(corsOriginsFlag, "")
 	viper.SetDefault(dynamoDBEndpointFlag, "")
 	viper.SetDefault(dynamoDBAuthTableFlag, controller.DefaultAuthTable)
-	viper.SetDefault(verboseFlag, false)
 	viper.BindEnv(awsRegionFlag, awsRegionEnv)
+	viper.BindEnv(verboseFlag, verboseEnv)
+	viper.BindEnv(corsOriginsFlag, corsOriginsEnv)
 	viper.BindEnv(dynamoDBEndpointFlag, dynamoDBEndpointEnv)
 	viper.BindEnv(dynamoDBAuthTableFlag, dynamoDBAuthTableEnv)
-	viper.BindEnv(verboseFlag, verboseEnv)
 
 	sugar, err := utils.InitSugaredLogger(viper.GetBool(verboseFlag))
 
@@ -81,12 +85,18 @@ func init() {
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(request events.APIGatewayProxyRequest) (Response, error) {
+	headers := map[string]string{}
+	if viper.GetString(corsOriginsFlag) != "" {
+		headers["Access-Control-Allow-Origin"] = viper.GetString(corsOriginsFlag)
+	}
+
 	authParams := new(auth)
 
 	if err := json.Unmarshal([]byte(request.Body), &authParams); err != nil {
 		return Response{
 			Body:       fmt.Sprintf("No valid username or password provided: %s", err.Error()),
 			StatusCode: http.StatusBadRequest,
+			Headers:    headers,
 		}, nil
 	}
 
@@ -94,12 +104,14 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 		return Response{
 			Body:       fmt.Sprintf("Error saving the credentials in the database: %s", err.Error()),
 			StatusCode: http.StatusInternalServerError,
+			Headers:    headers,
 		}, fmt.Errorf("Error saving the credentials in the database: %w", err)
 	}
 
 	return Response{
 		Body:       "Successfully signed up",
 		StatusCode: http.StatusOK,
+		Headers:    headers,
 	}, nil
 }
 

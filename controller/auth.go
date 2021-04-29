@@ -21,7 +21,7 @@ func (s *SmartHome) Authenticate(username, password string) error {
 	hashedPassword, ok := credentials["password"].(*types.AttributeValueMemberS)
 
 	if !ok {
-		return fmt.Errorf("error retrieving credentials from database: %w", err)
+		return fmt.Errorf("user %s not found", username)
 	}
 
 	s.Debugw("successfully retrieved credentials for user", "user", username)
