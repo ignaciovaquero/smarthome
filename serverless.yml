@@ -27,7 +27,7 @@ provider:
   environment:
     SMARTHOME_AWS_REGION: eu-west-3
     SMARTHOME_JWT_SECRET: ${ssm:SMARTHOME_JWT_TOKEN~true}
-    SMARTHOME_CORS_ORIGINS: "http://igvaquero-smarthome-web-content.s3-website.eu-west-3.amazonaws.com"
+    SMARTHOME_CORS_ORIGINS: "https://smarthome.ivaquero.es"
 
   # you can overwrite defaults here
   #  stage: dev
@@ -65,7 +65,7 @@ functions:
           method: post
           cors:
             origins:
-              - http://igvaquero-smarthome-web-content.s3-website.eu-west-3.amazonaws.com
+              - https://smarthome.ivaquero.es
           request:
             parameters:
               paths:
@@ -78,7 +78,7 @@ functions:
           method: get
           cors:
             origins:
-              - http://igvaquero-smarthome-web-content.s3-website.eu-west-3.amazonaws.com
+              - https://smarthome.ivaquero.es
           request:
             parameters:
               paths:
@@ -91,7 +91,7 @@ functions:
           method: post
           cors:
             origins:
-              - http://igvaquero-smarthome-web-content.s3-website.eu-west-3.amazonaws.com
+              - https://smarthome.ivaquero.es
   signup:
     handler: bin/signup
     events:
@@ -100,7 +100,7 @@ functions:
           method: post
           cors:
             origins:
-              - http://igvaquero-smarthome-web-content.s3-website.eu-west-3.amazonaws.com
+              - https://smarthome.ivaquero.es
 
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
