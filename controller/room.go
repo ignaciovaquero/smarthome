@@ -23,7 +23,7 @@ func (s *SmartHome) SetRoomOptions(room string, options *RoomOptions) error {
 	_, err := s.PutItem(context.TODO(), &dynamodb.PutItemInput{
 		TableName: &s.Config.ControlPlaneTable,
 		Item: map[string]types.AttributeValue{
-			"room":          &types.AttributeValueMemberS{Value: string(room)},
+			"room":          &types.AttributeValueMemberS{Value: room},
 			"enabled":       &types.AttributeValueMemberBOOL{Value: options.Enabled},
 			"threshold_on":  &types.AttributeValueMemberN{Value: fmt.Sprintf("%.1f", options.ThresholdOn)},
 			"threshold_off": &types.AttributeValueMemberN{Value: fmt.Sprintf("%.1f", options.ThresholdOff)},
@@ -42,16 +42,12 @@ func (s *SmartHome) SetRoomOptions(room string, options *RoomOptions) error {
 // GetRoomOptions Gets the current temperature options for a given room
 func (s *SmartHome) GetRoomOptions(room string) (map[string]types.AttributeValue, error) {
 	s.Debugw("getting item from DynamoDB", "room", room)
-	output, err := s.GetItem(context.TODO(), &dynamodb.GetItemInput{
-		Key:       map[string]types.AttributeValue{"room": &types.AttributeValueMemberS{Value: string(room)}},
-		TableName: &s.Config.ControlPlaneTable,
-	})
-
+	roomOptions, err := s.get("room", room, s.Config.ControlPlaneTable)
 	if err != nil {
 		return map[string]types.AttributeValue{}, fmt.Errorf("error getting room %s: %w", room, err)
 	}
 
-	s.Debugw("successfully retrieved item from DynamoDB", "room", room, "item", output.Item)
+	s.Debugw("successfully retrieved item from DynamoDB", "room", room, "item", roomOptions)
 
-	return output.Item, nil
+	return roomOptions, nil
 }

@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/igvaquero18/smarthome/controller"
 	"github.com/igvaquero18/smarthome/utils"
 	"github.com/spf13/viper"
@@ -15,38 +17,34 @@ import (
 )
 
 const (
-	jwtSecretEnv            = "SMARTHOME_JWT_SECRET"
-	awsRegionEnv            = "SMARTHOME_AWS_REGION"
-	verboseEnv              = "SMARTHOME_VERBOSE"
-	corsOriginsEnv          = "SMARTHOME_CORS_ORIGINS"
-	dynamoDBEndpointEnv     = "SMARTHOME_DYNAMODB_ENDPOINT"
-	dynamoDBControlTableEnv = "SMARTHOME_DYNAMODB_CONTROL_PLANE_TABLE"
+	jwtSecretEnv         = "SMARTHOME_JWT_SECRET"
+	jwtExpirationEnv     = "SMARTHOME_JWT_EXPIRATION"
+	awsRegionEnv         = "SMARTHOME_AWS_REGION"
+	verboseEnv           = "SMARTHOME_VERBOSE"
+	corsOriginsEnv       = "SMARTHOME_CORS_ORIGINS"
+	dynamoDBEndpointEnv  = "SMARTHOME_DYNAMODB_ENDPOINT"
+	dynamoDBAuthTableEnv = "SMARTHOME_DYNAMODB_AUTH_TABLE"
 )
 
 const (
-	jwtSecretFlag            = "server.jwt.secret"
-	awsRegionFlag            = "aws.region"
-	verboseFlag              = "logging.verbose"
-	corsOriginsFlag          = "cors.origins"
-	dynamoDBEndpointFlag     = "aws.dynamodb.endpoint"
-	dynamoDBControlTableFlag = "aws.dynamodb.tables.control"
+	jwtSecretFlag         = "server.jwt.secret"
+	jwtExpirationFlag     = "server.jwt.expiration"
+	awsRegionFlag         = "aws.region"
+	verboseFlag           = "logging.verbose"
+	corsOriginsFlag       = "cors.origins"
+	dynamoDBEndpointFlag  = "aws.dynamodb.endpoint"
+	dynamoDBAuthTableFlag = "aws.dynamodb.tables.auth"
 )
 
 var (
-	validRooms = []string{"all", "bedroom", "livingroom"}
 	c          controller.SmartHomeInterface
 	sugar      *zap.SugaredLogger
+	expiration time.Duration
 )
 
-type validRoom string
-
-func (r validRoom) isValid() bool {
-	for _, room := range validRooms {
-		if string(r) == room {
-			return true
-		}
-	}
-	return false
+type auth struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 // Response is of type APIGatewayProxyResponse since we're leveraging the
@@ -57,17 +55,19 @@ type Response events.APIGatewayProxyResponse
 
 func init() {
 	viper.SetDefault(jwtSecretFlag, "")
+	viper.SetDefault(jwtSecretFlag, "1h")
 	viper.SetDefault(awsRegionFlag, "us-east-3")
 	viper.SetDefault(verboseFlag, false)
 	viper.SetDefault(corsOriginsFlag, "")
 	viper.SetDefault(dynamoDBEndpointFlag, "")
-	viper.SetDefault(dynamoDBControlTableFlag, controller.DefaultControlPlaneTable)
+	viper.SetDefault(dynamoDBAuthTableFlag, controller.DefaultAuthTable)
 	viper.BindEnv(jwtSecretFlag, jwtSecretEnv)
+	viper.BindEnv(jwtExpirationFlag, jwtExpirationEnv)
 	viper.BindEnv(awsRegionFlag, awsRegionEnv)
 	viper.BindEnv(verboseFlag, verboseEnv)
 	viper.BindEnv(corsOriginsFlag, corsOriginsEnv)
 	viper.BindEnv(dynamoDBEndpointFlag, dynamoDBEndpointEnv)
-	viper.BindEnv(dynamoDBControlTableFlag, dynamoDBControlTableEnv)
+	viper.BindEnv(dynamoDBAuthTableFlag, dynamoDBAuthTableEnv)
 
 	sugar, err := utils.InitSugaredLogger(viper.GetBool(verboseFlag))
 
@@ -85,11 +85,17 @@ func init() {
 		sugar.Fatalw("error creating DynamoDB client", "error", err.Error())
 	}
 
+	expiration, err = time.ParseDuration(viper.GetString(jwtExpirationFlag))
+
+	if err != nil {
+		sugar.Fatalw("invalid parameters for the JWT expiration time", "expiration", viper.GetString(jwtExpirationFlag))
+	}
+
 	c = controller.NewSmartHome(
 		controller.SetLogger(sugar),
 		controller.SetDynamoDBClient(dynamoClient),
 		controller.SetConfig(&controller.SmartHomeConfig{
-			ControlPlaneTable: viper.GetString(dynamoDBControlTableFlag),
+			AuthTable: viper.GetString(dynamoDBAuthTableFlag),
 		}),
 	)
 }
@@ -101,60 +107,52 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 		headers["Access-Control-Allow-Origin"] = viper.GetString(corsOriginsFlag)
 	}
 
-	if err := utils.ValidateTokenFromHeader(request.Headers["Authorization"], viper.GetString(jwtSecretFlag)); err != nil {
+	authParams := new(auth)
+
+	if err := json.Unmarshal([]byte(request.Body), &authParams); err != nil {
 		return Response{
-			Body:       fmt.Sprintf("Authentication failure: %s", err.Error()),
+			Body:       fmt.Sprintf("No valid username or password provided: %s", err.Error()),
+			StatusCode: http.StatusBadRequest,
+			Headers:    headers,
+		}, nil
+	}
+
+	if err := c.Authenticate(authParams.Username, authParams.Password); err != nil {
+		return Response{
+			Body:       fmt.Sprintf("Wrong username or password: %s", err.Error()),
 			StatusCode: http.StatusForbidden,
 			Headers:    headers,
 		}, nil
 	}
 
-	room := request.PathParameters["room"]
+	token := jwt.New(jwt.SigningMethodHS256)
+	claims := token.Claims.(jwt.MapClaims)
+	claims["sub"] = authParams.Username
+	claims["exp"] = time.Now().Add(expiration).Unix()
 
-	if !validRoom(room).isValid() {
+	t, err := token.SignedString([]byte(viper.GetString(jwtSecretFlag)))
+	if err != nil {
 		return Response{
-			Body:       "Invalid room name",
-			StatusCode: http.StatusBadRequest,
+			Body:       fmt.Sprintf("error signing token: %s", err.Error()),
+			StatusCode: http.StatusInternalServerError,
 			Headers:    headers,
-		}, nil
+		}, fmt.Errorf("error signing token: %w", err)
 	}
 
-	r := new(controller.RoomOptions)
+	body, err := json.Marshal(map[string]string{
+		"token": t,
+	})
 
-	if err := json.Unmarshal([]byte(request.Body), &r); err != nil {
+	if err != nil {
 		return Response{
-			Body:       err.Error(),
-			StatusCode: http.StatusBadRequest,
+			Body:       fmt.Sprintf("Error marshalling token: %s", err.Error()),
+			StatusCode: http.StatusInternalServerError,
 			Headers:    headers,
-		}, nil
-	}
-
-	if r.ThresholdOn > r.ThresholdOff {
-		return Response{
-			Body:       "threshold_on should be lower or equal to threshold_off",
-			StatusCode: http.StatusBadRequest,
-			Headers:    headers,
-		}, nil
-	}
-
-	rooms := []string{room}
-
-	if room == "all" {
-		rooms = utils.AllButOne(validRooms, "all")
-	}
-
-	for _, roomName := range rooms {
-		if err := c.SetRoomOptions(roomName, r); err != nil {
-			return Response{
-				Body:       fmt.Sprintf("Internal Server Error: %s", err.Error()),
-				StatusCode: http.StatusInternalServerError,
-				Headers:    headers,
-			}, fmt.Errorf("error setting room options for room %s: %w", roomName, err)
-		}
+		}, fmt.Errorf("Error marshalling token: %w", err)
 	}
 
 	return Response{
-		Body:       "successfully set room options",
+		Body:       string(body),
 		StatusCode: http.StatusOK,
 		Headers:    headers,
 	}, nil

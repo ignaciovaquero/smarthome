@@ -15,30 +15,22 @@ import (
 	"go.uber.org/zap"
 )
 
-const roomParam = "room"
-
 const (
-	portEnv                 = "SMARTHOME_SERVER_PORT"
-	addressEnv              = "SMARTHOME_LISTEN_ADDRESS"
 	jwtSecretEnv            = "SMARTHOME_JWT_SECRET"
 	awsRegionEnv            = "SMARTHOME_AWS_REGION"
 	verboseEnv              = "SMARTHOME_VERBOSE"
+	corsOriginsEnv          = "SMARTHOME_CORS_ORIGINS"
 	dynamoDBEndpointEnv     = "SMARTHOME_DYNAMODB_ENDPOINT"
 	dynamoDBControlTableEnv = "SMARTHOME_DYNAMODB_CONTROL_PLANE_TABLE"
-	dynamoDBOutsideTableEnv = "SMARTHOME_DYNAMODB_TEMPERATURE_OUTSIDE_TABLE"
-	dynamoDBInsideTableEnv  = "SMARTHOME_DYNAMODB_TEMPERATURE_INSIDE_TABLE"
 )
 
 const (
-	portFlag                 = "server.port"
-	addressFlag              = "server.address"
 	jwtSecretFlag            = "server.jwt.secret"
 	awsRegionFlag            = "aws.region"
 	verboseFlag              = "logging.verbose"
+	corsOriginsFlag          = "cors.origins"
 	dynamoDBEndpointFlag     = "aws.dynamodb.endpoint"
 	dynamoDBControlTableFlag = "aws.dynamodb.tables.control"
-	dynamoDBOutsideTableFlag = "aws.dynamodb.tables.outside"
-	dynamoDBInsideTableFlag  = "aws.dynamodb.tables.inside"
 )
 
 var (
@@ -65,19 +57,18 @@ func (r validRoom) isValid() bool {
 type Response events.APIGatewayProxyResponse
 
 func init() {
-	viper.SetDefault(awsRegionFlag, "us-east-1")
+	viper.SetDefault(jwtSecretFlag, "")
+	viper.SetDefault(awsRegionFlag, "us-east-3")
+	viper.SetDefault(verboseFlag, false)
+	viper.SetDefault(corsOriginsFlag, "")
 	viper.SetDefault(dynamoDBEndpointFlag, "")
 	viper.SetDefault(dynamoDBControlTableFlag, controller.DefaultControlPlaneTable)
-	viper.SetDefault(dynamoDBOutsideTableFlag, controller.DefaultTempOutsideTable)
-	viper.SetDefault(dynamoDBInsideTableFlag, controller.DefaultTempInsideTable)
-	viper.SetDefault(verboseFlag, false)
 	viper.BindEnv(jwtSecretFlag, jwtSecretEnv)
 	viper.BindEnv(awsRegionFlag, awsRegionEnv)
+	viper.BindEnv(verboseFlag, verboseEnv)
+	viper.BindEnv(corsOriginsFlag, corsOriginsEnv)
 	viper.BindEnv(dynamoDBEndpointFlag, dynamoDBEndpointEnv)
 	viper.BindEnv(dynamoDBControlTableFlag, dynamoDBControlTableEnv)
-	viper.BindEnv(dynamoDBOutsideTableFlag, dynamoDBOutsideTableEnv)
-	viper.BindEnv(dynamoDBInsideTableFlag, dynamoDBInsideTableEnv)
-	viper.BindEnv(verboseFlag, verboseEnv)
 
 	sugar, err := utils.InitSugaredLogger(viper.GetBool(verboseFlag))
 
@@ -100,20 +91,32 @@ func init() {
 		controller.SetDynamoDBClient(dynamoClient),
 		controller.SetConfig(&controller.SmartHomeConfig{
 			ControlPlaneTable: viper.GetString(dynamoDBControlTableFlag),
-			TempOutsideTable:  viper.GetString(dynamoDBOutsideTableFlag),
-			TempInsideTable:   viper.GetString(dynamoDBInsideTableFlag),
 		}),
 	)
 }
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
 func Handler(request events.APIGatewayProxyRequest) (Response, error) {
+	headers := map[string]string{}
+	if viper.GetString(corsOriginsFlag) != "" {
+		headers["Access-Control-Allow-Origin"] = viper.GetString(corsOriginsFlag)
+	}
+
+	if err := utils.ValidateTokenFromHeader(request.Headers["Authorization"], viper.GetString(jwtSecretFlag)); err != nil {
+		return Response{
+			Body:       fmt.Sprintf("Authentication failure: %s", err.Error()),
+			StatusCode: http.StatusForbidden,
+			Headers:    headers,
+		}, nil
+	}
+
 	room := request.PathParameters["room"]
 
 	if !validRoom(room).isValid() {
 		return Response{
 			Body:       "Invalid room name",
 			StatusCode: http.StatusBadRequest,
+			Headers:    headers,
 		}, nil
 	}
 
@@ -126,6 +129,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 				return Response{
 					Body:       fmt.Sprintf("Internal Server Error: %s", err.Error()),
 					StatusCode: http.StatusInternalServerError,
+					Headers:    headers,
 				}, fmt.Errorf("error getting item from DynamoDB: %w", err)
 			}
 			if item == nil {
@@ -138,6 +142,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 			return Response{
 				Body:       "Not found",
 				StatusCode: http.StatusNotFound,
+				Headers:    headers,
 			}, nil
 		}
 		body, err := json.Marshal(roomOpts)
@@ -149,6 +154,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 		return Response{
 			Body:       string(body),
 			StatusCode: http.StatusOK,
+			Headers:    headers,
 		}, nil
 	}
 
@@ -157,6 +163,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 		return Response{
 			Body:       fmt.Sprintf("Internal Server Error: %s", err.Error()),
 			StatusCode: http.StatusInternalServerError,
+			Headers:    headers,
 		}, fmt.Errorf("error getting item from DynamoDB: %w", err)
 	}
 
@@ -164,19 +171,23 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 		return Response{
 			Body:       "Not found",
 			StatusCode: http.StatusNotFound,
+			Headers:    headers,
 		}, nil
 	}
 
 	body, err := json.Marshal(item)
 	if err != nil {
 		return Response{
-			Body: fmt.Sprintf("Internal Server Error: %s", err.Error()),
+			Body:       fmt.Sprintf("Internal Server Error: %s", err.Error()),
+			StatusCode: http.StatusInternalServerError,
+			Headers:    headers,
 		}, fmt.Errorf("error marshalling response: %w", err)
 	}
 
 	return Response{
 		Body:       string(body),
 		StatusCode: http.StatusOK,
+		Headers:    headers,
 	}, nil
 }
 

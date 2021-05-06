@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/igvaquero18/smarthome/api"
 	"github.com/igvaquero18/smarthome/controller"
@@ -19,9 +20,11 @@ const (
 	portEnv                 = "SMARTHOME_SERVER_PORT"
 	addressEnv              = "SMARTHOME_LISTEN_ADDRESS"
 	jwtSecretEnv            = "SMARTHOME_JWT_SECRET"
+	jwtExpirationEnv        = "SMARTHOME_JWT_EXPIRATION"
 	awsRegionEnv            = "SMARTHOME_AWS_REGION"
 	corsOriginsEnv          = "SMARTHOME_CORS_ORIGINS"
 	dynamoDBEndpointEnv     = "SMARTHOME_DYNAMODB_ENDPOINT"
+	dynamoDBAuthTableEnv    = "SMARTHOME_DYNAMODB_AUTH_TABLE"
 	dynamoDBControlTableEnv = "SMARTHOME_DYNAMODB_CONTROL_PLANE_TABLE"
 	dynamoDBOutsideTableEnv = "SMARTHOME_DYNAMODB_TEMPERATURE_OUTSIDE_TABLE"
 	dynamoDBInsideTableEnv  = "SMARTHOME_DYNAMODB_TEMPERATURE_INSIDE_TABLE"
@@ -31,9 +34,11 @@ const (
 	portFlag                 = "server.port"
 	addressFlag              = "server.address"
 	jwtSecretFlag            = "server.jwt.secret"
+	jwtExpirationFlag        = "server.jwt.expiration"
 	awsRegionFlag            = "aws.region"
 	corsOriginsFlag          = "cors.origins"
 	dynamoDBEndpointFlag     = "aws.dynamodb.endpoint"
+	dynamoDBAuthTableFlag    = "aws.dynamodb.tables.auth"
 	dynamoDBControlTableFlag = "aws.dynamodb.tables.control"
 	dynamoDBOutsideTableFlag = "aws.dynamodb.tables.outside"
 	dynamoDBInsideTableFlag  = "aws.dynamodb.tables.inside"
@@ -60,6 +65,7 @@ func serve(cmd *cobra.Command, args []string) {
 	port := viper.GetInt(portFlag)
 	origins := strings.Split(viper.GetString(corsOriginsFlag), " ")
 	dynamoDBEndpoint := viper.GetString(dynamoDBEndpointFlag)
+	dynamoDBAuthTable := viper.GetString(dynamoDBAuthTableFlag)
 	dynamoDBControlTable := viper.GetString(dynamoDBControlTableFlag)
 	dynamoDBOutsiteTable := viper.GetString(dynamoDBOutsideTableFlag)
 	dynamoDBInsiteTable := viper.GetString(dynamoDBInsideTableFlag)
@@ -70,11 +76,22 @@ func serve(cmd *cobra.Command, args []string) {
 		sugar.Fatalw("error creating DynamoDB client", "error", err.Error())
 	}
 
+	expiration, err := time.ParseDuration(viper.GetString(jwtExpirationFlag))
+
+	if err != nil {
+		sugar.Fatalw("invalid parameters for the JWT expiration time", "expiration", viper.GetString(jwtExpirationFlag))
+	}
+
 	s := api.NewClient(
+		api.JWTConfig{
+			JWTSecret:     jwtSecret,
+			JWTExpiration: expiration,
+		},
 		controller.NewSmartHome(
 			controller.SetLogger(sugar),
 			controller.SetDynamoDBClient(dynamoClient),
 			controller.SetConfig(&controller.SmartHomeConfig{
+				AuthTable:         dynamoDBAuthTable,
 				ControlPlaneTable: dynamoDBControlTable,
 				TempOutsideTable:  dynamoDBOutsiteTable,
 				TempInsideTable:   dynamoDBInsiteTable,
@@ -102,13 +119,14 @@ func serve(cmd *cobra.Command, args []string) {
 		}))
 	}
 
+	room := e.Group(fmt.Sprintf("%s/room", apiVersion))
 	if jwtSecret != "" {
-		e.Use(middleware.JWT([]byte(jwtSecret)))
+		room.Use(middleware.JWT([]byte(jwtSecret)))
+		e.POST(fmt.Sprintf("%s/login", apiVersion), s.Login)
+		e.POST(fmt.Sprintf("%s/signup", apiVersion), s.SignUp)
 	} else {
 		sugar.Warn("no jwt secret provided, disabling authentication")
 	}
-
-	room := e.Group(fmt.Sprintf("%s/room", apiVersion))
 	room.POST("/:room", s.SetRoomOptions)
 	room.GET("/:room", s.GetRoomOptions)
 	p := prometheus.NewPrometheus("smarthome", nil)
@@ -125,24 +143,30 @@ func init() {
 	serveCmd.Flags().StringP("address", "a", "0.0.0.0", "address where to bind to")
 	serveCmd.Flags().StringP("aws-region", "r", "us-east-1", "AWS region for DynamoDB")
 	serveCmd.Flags().StringP("dynamodb-endpoint", "d", "", "DynamoDB endpoint")
+	serveCmd.Flags().String("dynamodb-auth-table", controller.DefaultAuthTable, "DynamoDB Authentication table name")
 	serveCmd.Flags().String("dynamodb-control-table", controller.DefaultControlPlaneTable, "DynamoDB Control Plane table name")
 	serveCmd.Flags().String("dynamodb-outside-table", controller.DefaultTempOutsideTable, "DynamoDB Temperature Outside table name")
 	serveCmd.Flags().String("dynamodb-inside-table", controller.DefaultTempInsideTable, "DynamoDB Temperature Inside table name")
+	serveCmd.Flags().String("jwt-expiration", "1h", "Expiration of JWT token. See https://golang.org/pkg/time/#ParseDuration for an example of how to set this parameter")
 	serveCmd.Flags().String("cors-origins", "", "Space-separated list of CORS Origin URLs")
 	viper.BindPFlag(portFlag, serveCmd.Flags().Lookup("port"))
 	viper.BindPFlag(addressFlag, serveCmd.Flags().Lookup("address"))
 	viper.BindPFlag(awsRegionFlag, serveCmd.Flags().Lookup("aws-region"))
 	viper.BindPFlag(dynamoDBEndpointFlag, serveCmd.Flags().Lookup("dynamodb-endpoint"))
+	viper.BindPFlag(dynamoDBAuthTableFlag, serveCmd.Flags().Lookup("dynamodb-auth-table"))
 	viper.BindPFlag(dynamoDBControlTableFlag, serveCmd.Flags().Lookup("dynamodb-control-table"))
 	viper.BindPFlag(dynamoDBOutsideTableFlag, serveCmd.Flags().Lookup("dynamodb-outside-table"))
 	viper.BindPFlag(dynamoDBInsideTableFlag, serveCmd.Flags().Lookup("dynamodb-inside-table"))
+	viper.BindPFlag(jwtExpirationFlag, serveCmd.Flags().Lookup("jwt-expiration"))
 	viper.BindPFlag(corsOriginsFlag, serveCmd.Flags().Lookup("cors-origins"))
 	viper.BindEnv(portFlag, portEnv)
 	viper.BindEnv(addressFlag, addressEnv)
 	viper.BindEnv(jwtSecretFlag, jwtSecretEnv)
+	viper.BindEnv(jwtExpirationFlag, jwtExpirationEnv)
 	viper.BindEnv(awsRegionFlag, awsRegionEnv)
 	viper.BindEnv(corsOriginsFlag, corsOriginsEnv)
 	viper.BindEnv(dynamoDBEndpointFlag, dynamoDBEndpointEnv)
+	viper.BindEnv(dynamoDBAuthTableFlag, dynamoDBAuthTableEnv)
 	viper.BindEnv(dynamoDBControlTableFlag, dynamoDBControlTableEnv)
 	viper.BindEnv(dynamoDBOutsideTableFlag, dynamoDBOutsideTableEnv)
 	viper.BindEnv(dynamoDBInsideTableFlag, dynamoDBInsideTableEnv)

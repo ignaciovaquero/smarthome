@@ -18,7 +18,7 @@ service: smarthome
 
 # You can pin your service to only deploy with a specific Serverless version
 # Check out our docs for more details
-frameworkVersion: '2'
+frameworkVersion: "2"
 
 provider:
   name: aws
@@ -31,7 +31,7 @@ provider:
         description: API Key for accessing SmartHome API
     usagePlan:
       quota:
-        limit: 30
+        limit: 1
         offset: 0
         period: DAY
       throttle:
@@ -40,9 +40,11 @@ provider:
   environment:
     SMARTHOME_AWS_REGION: eu-west-3
     SMARTHOME_JWT_SECRET: ${ssm:SMARTHOME_JWT_TOKEN~true}
+    SMARTHOME_CORS_ORIGINS: "https://smarthome.ivaquero.es"
+    SMARTHOME_JWT_EXPIRATION: 15m
 
-# you can overwrite defaults here
-#  stage: dev
+  # you can overwrite defaults here
+  #  stage: dev
 
   iam:
     role:
@@ -51,9 +53,12 @@ provider:
           Action:
             - "dynamodb:*"
           Resource:
-            Fn::Join:
-              - ""
-              - arn:aws:dynamodb:eu-west-3:106260645150:table/ControlPlane
+            - Fn::Join:
+                - ""
+                - arn:aws:dynamodb:eu-west-3:106260645150:table/ControlPlane
+            - Fn::Join:
+                - ""
+                - arn:aws:dynamodb:eu-west-3:106260645150:table/Authentication
 
 # you can define service wide environment variables here
 #  environment:
@@ -72,7 +77,9 @@ functions:
       - http:
           path: room/{room}
           method: post
-          private: true
+          cors:
+            origins:
+              - https://smarthome.ivaquero.es
           request:
             parameters:
               paths:
@@ -83,11 +90,33 @@ functions:
       - http:
           path: room/{room}
           method: get
-          private: true
+          cors:
+            origins:
+              - https://smarthome.ivaquero.es
           request:
             parameters:
               paths:
                 room: true
+  login:
+    handler: bin/login
+    events:
+      - http:
+          path: login
+          method: post
+          cors:
+            origins:
+              - https://smarthome.ivaquero.es
+  signup:
+    handler: bin/signup
+    events:
+      - http:
+          path: signup
+          private: true
+          method: post
+          cors:
+            origins:
+              - https://smarthome.ivaquero.es
+
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
 #    Check the event documentation for details
@@ -144,6 +173,19 @@ resources:
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
+    Authentication:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Authentication
+        AttributeDefinitions:
+          - AttributeName: username
+            AttributeType: S
+        KeySchema:
+          - AttributeName: username
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
     # TemperatureOutside:
     #   Type: AWS::DynamoDB::Table
     #   Properties:
@@ -170,7 +212,6 @@ resources:
     #     ProvisionedThroughput:
     #       ReadCapacityUnits: 1
     #       WriteCapacityUnits: 1
-
 # you can add CloudFormation resource templates here
 #resources:
 #  Resources:
