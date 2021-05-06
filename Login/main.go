@@ -18,6 +18,7 @@ import (
 
 const (
 	jwtSecretEnv         = "SMARTHOME_JWT_SECRET"
+	jwtExpirationEnv     = "SMARTHOME_JWT_EXPIRATION"
 	awsRegionEnv         = "SMARTHOME_AWS_REGION"
 	verboseEnv           = "SMARTHOME_VERBOSE"
 	corsOriginsEnv       = "SMARTHOME_CORS_ORIGINS"
@@ -27,6 +28,7 @@ const (
 
 const (
 	jwtSecretFlag         = "server.jwt.secret"
+	jwtExpirationFlag     = "server.jwt.expiration"
 	awsRegionFlag         = "aws.region"
 	verboseFlag           = "logging.verbose"
 	corsOriginsFlag       = "cors.origins"
@@ -35,8 +37,9 @@ const (
 )
 
 var (
-	c     controller.SmartHomeInterface
-	sugar *zap.SugaredLogger
+	c          controller.SmartHomeInterface
+	sugar      *zap.SugaredLogger
+	expiration time.Duration
 )
 
 type auth struct {
@@ -52,12 +55,14 @@ type Response events.APIGatewayProxyResponse
 
 func init() {
 	viper.SetDefault(jwtSecretFlag, "")
+	viper.SetDefault(jwtSecretFlag, "1h")
 	viper.SetDefault(awsRegionFlag, "us-east-3")
 	viper.SetDefault(verboseFlag, false)
 	viper.SetDefault(corsOriginsFlag, "")
 	viper.SetDefault(dynamoDBEndpointFlag, "")
 	viper.SetDefault(dynamoDBAuthTableFlag, controller.DefaultAuthTable)
 	viper.BindEnv(jwtSecretFlag, jwtSecretEnv)
+	viper.BindEnv(jwtExpirationFlag, jwtExpirationEnv)
 	viper.BindEnv(awsRegionFlag, awsRegionEnv)
 	viper.BindEnv(verboseFlag, verboseEnv)
 	viper.BindEnv(corsOriginsFlag, corsOriginsEnv)
@@ -78,6 +83,12 @@ func init() {
 	dynamoClient, err := utils.InitDynamoClient(region, dynamoDBEndpoint)
 	if err != nil {
 		sugar.Fatalw("error creating DynamoDB client", "error", err.Error())
+	}
+
+	expiration, err = time.ParseDuration(viper.GetString(jwtExpirationFlag))
+
+	if err != nil {
+		sugar.Fatalw("invalid parameters for the JWT expiration time", "expiration", viper.GetString(jwtExpirationFlag))
 	}
 
 	c = controller.NewSmartHome(
@@ -117,7 +128,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
 	claims["sub"] = authParams.Username
-	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
+	claims["exp"] = time.Now().Add(expiration).Unix()
 
 	t, err := token.SignedString([]byte(viper.GetString(jwtSecretFlag)))
 	if err != nil {

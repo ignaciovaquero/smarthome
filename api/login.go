@@ -35,9 +35,9 @@ func (cl *Client) Login(c echo.Context) error {
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
 	claims["sub"] = authParams.Username
-	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
+	claims["exp"] = time.Now().Add(cl.Config.JWTExpiration).Unix()
 
-	t, err := token.SignedString([]byte(cl.JWTSecret))
+	t, err := token.SignedString([]byte(cl.Config.JWTSecret))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, errorResponse{
 			Message: fmt.Sprintf("error signing token: %s", err.Error()),

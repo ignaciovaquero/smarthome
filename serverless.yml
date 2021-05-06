@@ -24,10 +24,24 @@ provider:
   name: aws
   runtime: go1.x
   region: eu-west-3
+  apiGateway:
+    apiKeySourceType: HEADER
+    apiKeys:
+      - name: smarthome
+        description: API Key for accessing SmartHome API
+    usagePlan:
+      quota:
+        limit: 1
+        offset: 0
+        period: DAY
+      throttle:
+        burstLimit: 100
+        rateLimit: 50
   environment:
     SMARTHOME_AWS_REGION: eu-west-3
     SMARTHOME_JWT_SECRET: ${ssm:SMARTHOME_JWT_TOKEN~true}
     SMARTHOME_CORS_ORIGINS: "https://smarthome.ivaquero.es"
+    SMARTHOME_JWT_EXPIRATION: 15m
 
   # you can overwrite defaults here
   #  stage: dev
@@ -97,6 +111,7 @@ functions:
     events:
       - http:
           path: signup
+          private: true
           method: post
           cors:
             origins:

@@ -14,6 +14,7 @@ clean:
 
 deploy: clean build
 	sls deploy -r $(AWS_REGION) --verbose
+	go mod tidy
 
 remove:
 	sls remove
