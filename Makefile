@@ -1,6 +1,6 @@
 .PHONY: build clean deploy gomodgen remove
 
-AWS_REGION := eu-west-3
+AWS_REGION ?= eu-west-3
 
 build: gomodgen
 	export GO111MODULE=on
