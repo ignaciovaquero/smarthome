@@ -1,6 +1,7 @@
-.PHONY: build clean deploy gomodgen remove
+.PHONY: build clean deploy gomodgen remove dev
 
 AWS_REGION ?= eu-west-3
+SMARTHOME_JWT_EXPIRATION ?= 15m
 
 build: gomodgen
 	export GO111MODULE=on
@@ -22,3 +23,6 @@ remove:
 gomodgen:
 	chmod u+x gomod.sh
 	./gomod.sh
+
+dev:
+	go run main.go serve -a 127.0.0.1 --jwt-expiration $(SMARTHOME_JWT_EXPIRATION)
