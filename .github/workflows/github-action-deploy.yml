@@ -28,5 +28,5 @@ jobs:
         with:
           args: deploy -r eu-west-3 --verbose
         env:
-          AWS_ACCESS_KEY_ID: AKIARRPNAYUPDAUQOEMK
+          AWS_ACCESS_KEY_ID: AKIARRPNAYUPNGQYG7QL
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
