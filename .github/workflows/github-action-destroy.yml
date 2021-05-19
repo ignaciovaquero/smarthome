@@ -1,0 +1,16 @@
+name: Destroy SmartHome API
+on: [workflow_dispatch]
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 0.15.2
+      - name: Init Terraform
+        run: terraform -chdir=terraform init -backend-config="access_key=AKIARRPNAYUPDAUQOEMK" -backend-config="secret_key=${{ secrets.AWS_SECRET_KEY }}"
+      - name: Destroy Terraform
+        run: terraform -chdir=terraform destroy -var secret_key="${{ secrets.AWS_SECRET_KEY }}" -auto-approve

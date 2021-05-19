@@ -1,0 +1,36 @@
+name: Deploy SmartHome web
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: "15"
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: 1.16.3
+      - name: Build the project
+        run: |
+          chmod u+x gomod.sh
+          ./gomod.sh
+          export GO111MODULE=on
+          env GOOS=linux go build -ldflags="-s -w" -o bin/setroom SetRoom/main.go
+          env GOOS=linux go build -ldflags="-s -w" -o bin/getroom GetRoom/main.go
+          env GOOS=linux go build -ldflags="-s -w" -o bin/login Login/main.go
+          env GOOS=linux go build -ldflags="-s -w" -o bin/signup SignUp/main.go
+      - name: Deploy the project
+        uses: serverless/github-action@master
+        with:
+          args: deploy -r eu-west-3 --verbose
+        env:
+          AWS_ACCESS_KEY_ID: AKIARRPNAYUPDAUQOEMK
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_KEY }}
