@@ -99,8 +99,6 @@ func serve(cmd *cobra.Command, args []string) {
 		),
 	)
 
-	sugar.Infow("starting server", "address", address, "port", port)
-
 	e := echo.New()
 	e.Use(middleware.Recover())
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{

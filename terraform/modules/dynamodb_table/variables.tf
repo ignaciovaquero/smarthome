@@ -15,3 +15,15 @@ variable "hash_key" {
   type = string
   description = "The Hash Key for the DynamoDB table"
 }
+
+variable "read_capacity" {
+  type = number
+  default = 1
+  description = "The number of read units for this table. Defaults to 1."
+}
+
+variable "write_capacity" {
+  type = number
+  default = 1
+  description = "The number of write units for this table. Defaults to 1."
+}
