@@ -6,7 +6,7 @@ resource "aws_dynamodb_table" "table" {
   #   - 25GB
   #   - 25 read capacity units
   #   - 25 write capacity units
-  # Here we are limiting read and write capacity to 20
+  # Here we are limiting read and write capacity to 1
   read_capacity = 1
   write_capacity = 1
   hash_key = var.hash_key

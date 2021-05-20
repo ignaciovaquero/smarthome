@@ -19,17 +19,17 @@ type auth struct {
 func (cl *Client) Login(c echo.Context) error {
 	authParams := new(auth)
 	if err := json.NewDecoder(c.Request().Body).Decode(&authParams); err != nil {
-		return c.JSON(http.StatusBadRequest, errorResponse{
-			Message: fmt.Sprintf("No valid username or password provided: %s", err.Error()),
-			Code:    http.StatusBadRequest,
-		})
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			fmt.Sprintf("No valid username or password provided: %s", err.Error()),
+		)
 	}
 
 	if err := cl.Authenticate(authParams.Username, authParams.Password); err != nil {
-		return c.JSON(http.StatusForbidden, errorResponse{
-			Message: fmt.Sprintf("Wrong username or password: %s", err.Error()),
-			Code:    http.StatusForbidden,
-		})
+		return echo.NewHTTPError(
+			http.StatusForbidden,
+			fmt.Sprintf("Wrong username or password: %s", err.Error()),
+		)
 	}
 
 	token := jwt.New(jwt.SigningMethodHS256)
@@ -39,10 +39,10 @@ func (cl *Client) Login(c echo.Context) error {
 
 	t, err := token.SignedString([]byte(cl.Config.JWTSecret))
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, errorResponse{
-			Message: fmt.Sprintf("error signing token: %s", err.Error()),
-			Code:    http.StatusInternalServerError,
-		})
+		return echo.NewHTTPError(
+			http.StatusInternalServerError,
+			fmt.Sprintf("Error signing token: %s", err.Error()),
+		)
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{
@@ -54,21 +54,17 @@ func (cl *Client) Login(c echo.Context) error {
 func (cl *Client) SignUp(c echo.Context) error {
 	authParams := new(auth)
 	if err := json.NewDecoder(c.Request().Body).Decode(&authParams); err != nil {
-		return c.JSON(http.StatusBadRequest, errorResponse{
-			Message: fmt.Sprintf("No valid username or password provided: %s", err.Error()),
-			Code:    http.StatusBadRequest,
-		})
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			fmt.Sprintf("No valid username or password provided: %s", err.Error()),
+		)
 	}
 
 	if err := cl.SetCredentials(authParams.Username, authParams.Password); err != nil {
-		return c.JSON(http.StatusInternalServerError, errorResponse{
-			Message: fmt.Sprintf("Error saving the credentials in the database: %s", err.Error()),
-			Code:    http.StatusInternalServerError,
-			Params: map[string]string{
-				"username": authParams.Username,
-				"password": "*********",
-			},
-		})
+		return echo.NewHTTPError(
+			http.StatusInternalServerError,
+			fmt.Sprintf("Error saving the credentials in the database: %s", err.Error()),
+		)
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{

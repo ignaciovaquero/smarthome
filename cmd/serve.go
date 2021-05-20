@@ -99,12 +99,10 @@ func serve(cmd *cobra.Command, args []string) {
 		),
 	)
 
-	sugar.Infow("starting server", "address", address, "port", port)
-
 	e := echo.New()
 	e.Use(middleware.Recover())
 	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: `{"level":"info","ts":"${time_unix}","id":"${id}","remote_ip":"${remote_ip}","host":"${host}",` +
+		Format: `{"ts":"${time_unix}","id":"${id}","remote_ip":"${remote_ip}","host":"${host}",` +
 			`"method":"${method}","uri":"${uri}","status":${status},"error":"${error}","latency":${latency},` +
 			`"bytes_in":${bytes_in},"bytes_out":${bytes_out}}` + "\n",
 		Output: os.Stdout,

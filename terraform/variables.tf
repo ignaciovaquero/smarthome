@@ -12,6 +12,7 @@ variable "aws_access_key" {
 variable "aws_secret_key" {
   type = string
   description = "AWS secret key"
+  sensitive = true
 }
 
 variable "dynamodb_endpoint" {

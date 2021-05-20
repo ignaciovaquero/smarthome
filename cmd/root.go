@@ -49,6 +49,7 @@ func init() {
 	logger, err := zap.NewProduction()
 	if err != nil {
 		fmt.Printf("%+v\n", err)
+		os.Exit(1)
 	}
 	defer logger.Sync()
 	sugar = logger.Sugar()
@@ -65,7 +66,7 @@ func initConfig() {
 		viper.SetConfigType("yml")
 	}
 	if err = viper.ReadInConfig(); err == nil {
-		sugar.Debugw("using config file", "config_file", viper.ConfigFileUsed())
+		fmt.Printf("using config file %s\n", viper.ConfigFileUsed())
 	}
 
 	if sugar, err = utils.InitSugaredLogger(viper.GetBool(verboseFlag)); err != nil {
