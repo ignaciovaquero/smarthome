@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -31,39 +32,26 @@ func (cl *Client) SetRoomOptions(c echo.Context) error {
 	room := c.Param(roomParam)
 
 	if !validRoom(room).isValid() {
-		return c.JSON(http.StatusBadRequest, errorResponse{
-			Message: "Invalid room name",
-			Code:    http.StatusBadRequest,
-			Params: struct {
-				ValidRooms []string `json:"valid_rooms"`
-				Room       string   `json:"room"`
-			}{
-				ValidRooms: validRooms,
-				Room:       room,
-			},
-		})
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			fmt.Sprintf("Invalid room name %s. Valid rooms: %v", room, validRooms),
+		)
 	}
 
 	r := new(controller.RoomOptions)
 	if err := json.NewDecoder(c.Request().Body).Decode(&r); err != nil {
-		return c.JSON(http.StatusBadRequest, errorResponse{
-			Message: err.Error(),
-			Code:    http.StatusBadRequest,
-		})
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
 	if r.ThresholdOn > r.ThresholdOff {
-		return c.JSON(http.StatusBadRequest, errorResponse{
-			Message: "threshold_on should be lower or equal to threshold_off",
-			Code:    http.StatusBadRequest,
-			Params: struct {
-				ThresholdOn  float32 `json:"threshold_on"`
-				ThresholdOff float32 `json:"threshold_off"`
-			}{
-				ThresholdOn:  r.ThresholdOn,
-				ThresholdOff: r.ThresholdOff,
-			},
-		})
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			fmt.Sprintf(
+				"threshold_on should be lower or equal to threshold_off. However we have: threshold_on = %f; threshold_off = %f",
+				r.ThresholdOn,
+				r.ThresholdOff,
+			),
+		)
 	}
 
 	rooms := []string{room}
@@ -74,15 +62,7 @@ func (cl *Client) SetRoomOptions(c echo.Context) error {
 
 	for _, roomName := range rooms {
 		if err := cl.SmartHomeInterface.SetRoomOptions(roomName, r); err != nil {
-			c.JSON(http.StatusInternalServerError, errorResponse{
-				Message: "Internal Server Error",
-				Code:    http.StatusInternalServerError,
-				Params: struct {
-					Error string `json:"error"`
-				}{
-					Error: err.Error(),
-				},
-			})
+			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 		}
 	}
 
@@ -102,17 +82,10 @@ func (cl *Client) GetRoomOptions(c echo.Context) error {
 	room := c.Param(roomParam)
 
 	if !validRoom(room).isValid() {
-		return c.JSON(http.StatusBadRequest, errorResponse{
-			Message: "Invalid room name",
-			Code:    http.StatusBadRequest,
-			Params: struct {
-				ValidRooms []string `json:"valid_rooms"`
-				Room       string   `json:"room"`
-			}{
-				ValidRooms: validRooms,
-				Room:       room,
-			},
-		})
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			fmt.Sprintf("Invalid room name %s. Valid rooms: %v", room, validRooms),
+		)
 	}
 
 	if room == "all" {
@@ -121,15 +94,7 @@ func (cl *Client) GetRoomOptions(c echo.Context) error {
 		for _, roomName := range rooms {
 			item, err := cl.SmartHomeInterface.GetRoomOptions(roomName)
 			if err != nil {
-				return c.JSON(http.StatusInternalServerError, errorResponse{
-					Message: "Internal Server Error",
-					Code:    http.StatusInternalServerError,
-					Params: struct {
-						Error string `json:"error"`
-					}{
-						Error: err.Error(),
-					},
-				})
+				return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 			}
 			if item == nil {
 				continue
@@ -137,42 +102,18 @@ func (cl *Client) GetRoomOptions(c echo.Context) error {
 			roomOpts = append(roomOpts, item)
 		}
 		if len(roomOpts) == 0 {
-			return c.JSON(http.StatusNotFound, errorResponse{
-				Message: "Not found",
-				Code:    http.StatusNotFound,
-				Params: struct {
-					Room string `json:"room"`
-				}{
-					Room: string(room),
-				},
-			})
+			return echo.NewHTTPError(http.StatusNotFound, "No rooms were found")
 		}
 		return c.JSON(http.StatusOK, roomOpts)
 	}
 
 	item, err := cl.SmartHomeInterface.GetRoomOptions(room)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, errorResponse{
-			Message: "Internal Server Error",
-			Code:    http.StatusInternalServerError,
-			Params: struct {
-				Error string `json:"error"`
-			}{
-				Error: err.Error(),
-			},
-		})
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
 	if item == nil {
-		return c.JSON(http.StatusNotFound, errorResponse{
-			Message: "Not found",
-			Code:    http.StatusNotFound,
-			Params: struct {
-				Room string `json:"room"`
-			}{
-				Room: string(room),
-			},
-		})
+		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("Room %s not found", room))
 	}
 
 	return c.JSON(http.StatusOK, item)
