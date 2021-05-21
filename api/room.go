@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/igvaquero18/smarthome/controller"
 	"github.com/igvaquero18/smarthome/utils"
 	"github.com/labstack/echo/v4"
 )
@@ -26,6 +25,13 @@ func (r validRoom) isValid() bool {
 	return false
 }
 
+// RoomOptions is a struct that represents the options available for a room
+type RoomOptions struct {
+	Enabled      bool    `json:"enabled"`
+	ThresholdOn  float32 `json:"threshold_on"`
+	ThresholdOff float32 `json:"threshold_off"`
+}
+
 // SetRoomOptions can enable or disable automating temperature
 // adjust for a particular room or the whole home.
 func (cl *Client) SetRoomOptions(c echo.Context) error {
@@ -38,7 +44,7 @@ func (cl *Client) SetRoomOptions(c echo.Context) error {
 		)
 	}
 
-	r := new(controller.RoomOptions)
+	r := new(RoomOptions)
 	if err := json.NewDecoder(c.Request().Body).Decode(&r); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
@@ -61,15 +67,15 @@ func (cl *Client) SetRoomOptions(c echo.Context) error {
 	}
 
 	for _, roomName := range rooms {
-		if err := cl.SmartHomeInterface.SetRoomOptions(roomName, r); err != nil {
+		if err := cl.SmartHomeInterface.SetRoomOptions(roomName, r.Enabled, r.ThresholdOn, r.ThresholdOff); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 		}
 	}
 
 	return c.JSON(http.StatusOK, struct {
-		Message string                 `json:"message"`
-		Code    int                    `json:"status_code"`
-		Item    controller.RoomOptions `json:"item"`
+		Message string      `json:"message"`
+		Code    int         `json:"status_code"`
+		Item    RoomOptions `json:"item"`
 	}{
 		Message: "successfully set room options",
 		Code:    http.StatusOK,

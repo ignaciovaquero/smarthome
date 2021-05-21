@@ -4,17 +4,6 @@ variable "aws_region" {
   default = "eu-west-3"
 }
 
-variable "aws_access_key" {
-  type = string
-  description = "AWS access key"
-}
-
-variable "aws_secret_key" {
-  type = string
-  description = "AWS secret key"
-  sensitive = true
-}
-
 variable "dynamodb_endpoint" {
   type = string
   description = "DynamoDB endpoint"
@@ -34,43 +23,43 @@ variable "dynamo_db_tables" {
   default = [
     {
       name = "ControlPlane"
-      hash_key = "room"
+      hash_key = "Room"
 
       attributes = [
         {
-          name = "room"
+          name = "Room"
           type = "S"
         }
       ]
     },
     {
       name = "Authentication"
-      hash_key = "username"
+      hash_key = "Username"
       attributes = [
         {
-          name = "username"
+          name = "Username"
           type = "S"
         }
       ]
     },
     {
       name = "TemperatureOutside"
-      hash_key = "date"
+      hash_key = "Date"
 
       attributes = [
         {
-          name = "date"
+          name = "Date"
           type = "S"
         }
       ]
     },
     {
       name = "TemperatureInside"
-      hash_key = "date"
+      hash_key = "Date"
 
       attributes = [
         {
-          name = "date"
+          name = "Date"
           type = "S"
         }
       ]
