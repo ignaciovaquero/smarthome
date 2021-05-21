@@ -39,7 +39,7 @@ provider:
         rateLimit: 50
   environment:
     SMARTHOME_AWS_REGION: eu-west-3
-    SMARTHOME_JWT_SECRET: ${ssm:SMARTHOME_JWT_TOKEN}
+    SMARTHOME_JWT_SECRET: ${ssm:SMARTHOME_JWT_TOKEN~true}
     SMARTHOME_CORS_ORIGINS: "https://smarthome.ivaquero.es"
     SMARTHOME_JWT_EXPIRATION: 15m
 
@@ -165,10 +165,10 @@ resources:
       Properties:
         TableName: ControlPlane
         AttributeDefinitions:
-          - AttributeName: room
+          - AttributeName: Room
             AttributeType: S
         KeySchema:
-          - AttributeName: room
+          - AttributeName: Room
             KeyType: HASH
         ProvisionedThroughput:
           ReadCapacityUnits: 1
@@ -178,10 +178,10 @@ resources:
       Properties:
         TableName: Authentication
         AttributeDefinitions:
-          - AttributeName: username
+          - AttributeName: Username
             AttributeType: S
         KeySchema:
-          - AttributeName: username
+          - AttributeName: Username
             KeyType: HASH
         ProvisionedThroughput:
           ReadCapacityUnits: 1

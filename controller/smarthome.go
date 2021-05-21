@@ -29,7 +29,7 @@ const (
 type SmartHomeInterface interface {
 	Authenticate(username, password string) error
 	SetCredentials(username, password string) error
-	SetRoomOptions(room string, options *RoomOptions) error
+	SetRoomOptions(room string, enabled bool, thresholdOn, thresholdOff float32) error
 	GetRoomOptions(room string) (map[string]types.AttributeValue, error)
 }
 

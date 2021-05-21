@@ -13,12 +13,12 @@ import (
 // password is incorrect.
 func (s *SmartHome) Authenticate(username, password string) error {
 	s.Debugw("Getting credentials for user", "user", username)
-	credentials, err := s.get("username", username, s.Config.AuthTable)
+	credentials, err := s.get("Username", username, s.Config.AuthTable)
 	if err != nil {
 		return fmt.Errorf("error getting user %s: %w", username, err)
 	}
 
-	hashedPassword, ok := credentials["password"].(*types.AttributeValueMemberS)
+	hashedPassword, ok := credentials["Password"].(*types.AttributeValueMemberS)
 
 	if !ok {
 		return fmt.Errorf("user %s not found", username)
@@ -39,8 +39,8 @@ func (s *SmartHome) SetCredentials(username, password string) error {
 	_, err = s.PutItem(context.TODO(), &dynamodb.PutItemInput{
 		TableName: &s.Config.AuthTable,
 		Item: map[string]types.AttributeValue{
-			"username": &types.AttributeValueMemberS{Value: username},
-			"password": &types.AttributeValueMemberS{Value: string(hashedPassword)},
+			"Username": &types.AttributeValueMemberS{Value: username},
+			"Password": &types.AttributeValueMemberS{Value: string(hashedPassword)},
 		},
 	})
 
