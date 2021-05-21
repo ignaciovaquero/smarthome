@@ -49,6 +49,13 @@ func (r validRoom) isValid() bool {
 	return false
 }
 
+// RoomOptions is a struct that represents the options available for a room
+type RoomOptions struct {
+	Enabled      bool    `json:"enabled"`
+	ThresholdOn  float32 `json:"threshold_on"`
+	ThresholdOff float32 `json:"threshold_off"`
+}
+
 // Response is of type APIGatewayProxyResponse since we're leveraging the
 // AWS Lambda Proxy Request functionality (default behavior)
 //
@@ -119,7 +126,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 		}, nil
 	}
 
-	r := new(controller.RoomOptions)
+	r := new(RoomOptions)
 
 	if err := json.Unmarshal([]byte(request.Body), &r); err != nil {
 		return Response{
@@ -144,7 +151,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 	}
 
 	for _, roomName := range rooms {
-		if err := c.SetRoomOptions(roomName, r); err != nil {
+		if err := c.SetRoomOptions(roomName, r.Enabled, r.ThresholdOn, r.ThresholdOff); err != nil {
 			return Response{
 				Body:       fmt.Sprintf("Internal Server Error: %s", err.Error()),
 				StatusCode: http.StatusInternalServerError,

@@ -165,10 +165,10 @@ resources:
       Properties:
         TableName: ControlPlane
         AttributeDefinitions:
-          - AttributeName: room
+          - AttributeName: Room
             AttributeType: S
         KeySchema:
-          - AttributeName: room
+          - AttributeName: Room
             KeyType: HASH
         ProvisionedThroughput:
           ReadCapacityUnits: 1
@@ -178,10 +178,10 @@ resources:
       Properties:
         TableName: Authentication
         AttributeDefinitions:
-          - AttributeName: username
+          - AttributeName: Username
             AttributeType: S
         KeySchema:
-          - AttributeName: username
+          - AttributeName: Username
             KeyType: HASH
         ProvisionedThroughput:
           ReadCapacityUnits: 1
