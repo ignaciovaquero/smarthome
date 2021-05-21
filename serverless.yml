@@ -39,7 +39,7 @@ provider:
         rateLimit: 50
   environment:
     SMARTHOME_AWS_REGION: eu-west-3
-    SMARTHOME_JWT_SECRET: ${ssm:SMARTHOME_JWT_TOKEN}
+    SMARTHOME_JWT_SECRET: ${ssm:SMARTHOME_JWT_TOKEN~true}
     SMARTHOME_CORS_ORIGINS: "https://smarthome.ivaquero.es"
     SMARTHOME_JWT_EXPIRATION: 15m
 
