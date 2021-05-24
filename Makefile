@@ -22,6 +22,7 @@ clean:
 	rm -rf terraform/.terraform
 	docker compose down -v
 	rm -rf docker
+	go mod tidy
 
 deploy: clean build
 	sls deploy -r $(AWS_REGION) --verbose
