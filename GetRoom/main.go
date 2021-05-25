@@ -4,15 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/igvaquero18/smarthome/controller"
 	"github.com/igvaquero18/smarthome/utils"
 	"github.com/spf13/viper"
-	"go.uber.org/zap"
 )
 
 const (
@@ -35,8 +33,6 @@ const (
 
 var (
 	validRooms = []string{"all", "bedroom", "livingroom"}
-	c          controller.SmartHomeInterface
-	sugar      *zap.SugaredLogger
 )
 
 type validRoom string
@@ -48,6 +44,13 @@ func (r validRoom) isValid() bool {
 		}
 	}
 	return false
+}
+
+// RoomOptions is a struct that represents the options available for a room
+type RoomOptions struct {
+	Enabled      bool    `json:"enabled"`
+	ThresholdOn  float32 `json:"threshold_on"`
+	ThresholdOff float32 `json:"threshold_off"`
 }
 
 // Response is of type APIGatewayProxyResponse since we're leveraging the
@@ -69,30 +72,6 @@ func init() {
 	viper.BindEnv(corsOriginsFlag, corsOriginsEnv)
 	viper.BindEnv(dynamoDBEndpointFlag, dynamoDBEndpointEnv)
 	viper.BindEnv(dynamoDBControlTableFlag, dynamoDBControlTableEnv)
-
-	sugar, err := utils.InitSugaredLogger(viper.GetBool(verboseFlag))
-
-	if err != nil {
-		fmt.Printf("error when initializing logger: %s\n", err.Error())
-		os.Exit(1)
-	}
-
-	region := viper.GetString(awsRegionFlag)
-	dynamoDBEndpoint := viper.GetString(dynamoDBEndpointFlag)
-
-	sugar.Infow("creating DynamoDB client", "region", region, "url", dynamoDBEndpoint)
-	dynamoClient, err := utils.InitDynamoClient(region, dynamoDBEndpoint)
-	if err != nil {
-		sugar.Fatalw("error creating DynamoDB client", "error", err.Error())
-	}
-
-	c = controller.NewSmartHome(
-		controller.SetLogger(sugar),
-		controller.SetDynamoDBClient(dynamoClient),
-		controller.SetConfig(&controller.SmartHomeConfig{
-			ControlPlaneTable: viper.GetString(dynamoDBControlTableFlag),
-		}),
-	)
 }
 
 // Handler is our lambda handler invoked by the `lambda.Start` function call
@@ -101,6 +80,37 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 	if viper.GetString(corsOriginsFlag) != "" {
 		headers["Access-Control-Allow-Origin"] = viper.GetString(corsOriginsFlag)
 	}
+
+	sugar, err := utils.InitSugaredLogger(viper.GetBool(verboseFlag))
+
+	if err != nil {
+		return Response{
+			StatusCode: http.StatusInternalServerError,
+			Body:       fmt.Sprintf("Internal Server Error: %s", err.Error()),
+			Headers:    headers,
+		}, fmt.Errorf("Error when initializing logger: %w", err)
+	}
+
+	region := viper.GetString(awsRegionFlag)
+	dynamoDBEndpoint := viper.GetString(dynamoDBEndpointFlag)
+
+	sugar.Infow("creating DynamoDB client", "region", region, "url", dynamoDBEndpoint)
+	dynamoClient, err := utils.InitDynamoClient(region, dynamoDBEndpoint)
+	if err != nil {
+		return Response{
+			StatusCode: http.StatusInternalServerError,
+			Body:       fmt.Sprintf("Internal Server Error: %s", err.Error()),
+			Headers:    headers,
+		}, fmt.Errorf("Error when creating DynamoDB client: %w", err)
+	}
+
+	var c controller.SmartHomeInterface = controller.NewSmartHome(
+		controller.SetLogger(sugar),
+		controller.SetDynamoDBClient(dynamoClient),
+		controller.SetConfig(&controller.SmartHomeConfig{
+			ControlPlaneTable: viper.GetString(dynamoDBControlTableFlag),
+		}),
+	)
 
 	if err := utils.ValidateTokenFromHeader(request.Headers["Authorization"], viper.GetString(jwtSecretFlag)); err != nil {
 		return Response{
@@ -122,7 +132,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 
 	if room == "all" {
 		rooms := utils.AllButOne(validRooms, "all")
-		roomOpts := []map[string]types.AttributeValue{}
+		roomOpts := []map[string]RoomOptions{}
 		for _, roomName := range rooms {
 			item, err := c.GetRoomOptions(roomName)
 			if err != nil {
@@ -130,17 +140,27 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 					Body:       fmt.Sprintf("Internal Server Error: %s", err.Error()),
 					StatusCode: http.StatusInternalServerError,
 					Headers:    headers,
-				}, fmt.Errorf("error getting item from DynamoDB: %w", err)
+				}, fmt.Errorf("Error getting item from DynamoDB: %w", err)
 			}
 			if item == nil {
 				continue
 			}
-			roomOpts = append(roomOpts, item)
+			roomOpt := RoomOptions{}
+			if err = attributevalue.UnmarshalMap(item, &roomOpt); err != nil {
+				return Response{
+					StatusCode: http.StatusInternalServerError,
+					Body:       fmt.Sprintf("Internal Server error: %s", err.Error()),
+					Headers:    headers,
+				}, fmt.Errorf("Error unmarshalling DynamoDB item: %w", err)
+			}
+			roomOpts = append(roomOpts, map[string]RoomOptions{
+				roomName: roomOpt,
+			})
 		}
 
 		if len(roomOpts) == 0 {
 			return Response{
-				Body:       "Not found",
+				Body:       "No rooms were found",
 				StatusCode: http.StatusNotFound,
 				Headers:    headers,
 			}, nil
@@ -148,7 +168,9 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 		body, err := json.Marshal(roomOpts)
 		if err != nil {
 			return Response{
-				Body: fmt.Sprintf("Internal Server Error: %s", err.Error()),
+				StatusCode: http.StatusInternalServerError,
+				Body:       fmt.Sprintf("Internal Server Error: %s", err.Error()),
+				Headers:    headers,
 			}, fmt.Errorf("error marshalling response: %w", err)
 		}
 		return Response{
@@ -169,13 +191,22 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 
 	if item == nil {
 		return Response{
-			Body:       "Not found",
+			Body:       fmt.Sprintf("Room %s not found", room),
 			StatusCode: http.StatusNotFound,
 			Headers:    headers,
 		}, nil
 	}
 
-	body, err := json.Marshal(item)
+	roomOpt := RoomOptions{}
+	if err = attributevalue.UnmarshalMap(item, &roomOpt); err != nil {
+		return Response{
+			StatusCode: http.StatusInternalServerError,
+			Body:       fmt.Sprintf("Internal Server Error: %s", err.Error()),
+			Headers:    headers,
+		}, fmt.Errorf("Error unmarshalling DynamoDB item: %w", err)
+	}
+
+	body, err := json.Marshal(roomOpt)
 	if err != nil {
 		return Response{
 			Body:       fmt.Sprintf("Internal Server Error: %s", err.Error()),

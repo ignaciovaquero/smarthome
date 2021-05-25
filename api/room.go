@@ -98,7 +98,6 @@ func (cl *Client) GetRoomOptions(c echo.Context) error {
 		rooms := utils.AllButOne(validRooms, "all")
 		roomOpts := []map[string]RoomOptions{}
 		for _, roomName := range rooms {
-			roomOpt := RoomOptions{}
 			item, err := cl.SmartHomeInterface.GetRoomOptions(roomName)
 			if err != nil {
 				return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
@@ -106,6 +105,7 @@ func (cl *Client) GetRoomOptions(c echo.Context) error {
 			if item == nil {
 				continue
 			}
+			roomOpt := RoomOptions{}
 			if err = attributevalue.UnmarshalMap(item, &roomOpt); err != nil {
 				return echo.NewHTTPError(
 					http.StatusInternalServerError,
