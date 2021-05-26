@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/igvaquero18/smarthome/utils"
 	"github.com/labstack/echo/v4"
 )
@@ -96,7 +96,7 @@ func (cl *Client) GetRoomOptions(c echo.Context) error {
 
 	if room == "all" {
 		rooms := utils.AllButOne(validRooms, "all")
-		roomOpts := []map[string]types.AttributeValue{}
+		roomOpts := []map[string]RoomOptions{}
 		for _, roomName := range rooms {
 			item, err := cl.SmartHomeInterface.GetRoomOptions(roomName)
 			if err != nil {
@@ -105,7 +105,16 @@ func (cl *Client) GetRoomOptions(c echo.Context) error {
 			if item == nil {
 				continue
 			}
-			roomOpts = append(roomOpts, item)
+			roomOpt := RoomOptions{}
+			if err = attributevalue.UnmarshalMap(item, &roomOpt); err != nil {
+				return echo.NewHTTPError(
+					http.StatusInternalServerError,
+					fmt.Sprintf("Error unmarshalling DynamoDB item: %s", err.Error()),
+				)
+			}
+			roomOpts = append(roomOpts, map[string]RoomOptions{
+				roomName: roomOpt,
+			})
 		}
 		if len(roomOpts) == 0 {
 			return echo.NewHTTPError(http.StatusNotFound, "No rooms were found")
@@ -122,5 +131,13 @@ func (cl *Client) GetRoomOptions(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("Room %s not found", room))
 	}
 
-	return c.JSON(http.StatusOK, item)
+	roomOpt := RoomOptions{}
+	if err = attributevalue.UnmarshalMap(item, &roomOpt); err != nil {
+		return echo.NewHTTPError(
+			http.StatusInternalServerError,
+			fmt.Sprintf("Error unmarshalling DynamoDB item: %s", err.Error()),
+		)
+	}
+
+	return c.JSON(http.StatusOK, roomOpt)
 }

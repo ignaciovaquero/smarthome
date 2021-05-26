@@ -4,9 +4,11 @@ go 1.15
 
 require (
 	github.com/aws/aws-lambda-go v1.22.0
-	github.com/aws/aws-sdk-go-v2 v1.2.0
+	github.com/aws/aws-sdk-go-v2 v1.6.0
 	github.com/aws/aws-sdk-go-v2/config v1.1.1
-	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.1.1
+	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.1.1
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.0.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.3.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/labstack/echo-contrib v0.9.0
