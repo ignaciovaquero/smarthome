@@ -27,6 +27,7 @@ func (r validRoom) isValid() bool {
 
 // RoomOptions is a struct that represents the options available for a room
 type RoomOptions struct {
+	Name         string  `json:"name,omitempty"`
 	Enabled      bool    `json:"enabled"`
 	ThresholdOn  float32 `json:"threshold_on"`
 	ThresholdOff float32 `json:"threshold_off"`
@@ -96,7 +97,7 @@ func (cl *Client) GetRoomOptions(c echo.Context) error {
 
 	if room == "all" {
 		rooms := utils.AllButOne(validRooms, "all")
-		roomOpts := []map[string]RoomOptions{}
+		roomOpts := []RoomOptions{}
 		for _, roomName := range rooms {
 			item, err := cl.SmartHomeInterface.GetRoomOptions(roomName)
 			if err != nil {
@@ -105,16 +106,14 @@ func (cl *Client) GetRoomOptions(c echo.Context) error {
 			if item == nil {
 				continue
 			}
-			roomOpt := RoomOptions{}
+			roomOpt := RoomOptions{Name: roomName}
 			if err = attributevalue.UnmarshalMap(item, &roomOpt); err != nil {
 				return echo.NewHTTPError(
 					http.StatusInternalServerError,
 					fmt.Sprintf("Error unmarshalling DynamoDB item: %s", err.Error()),
 				)
 			}
-			roomOpts = append(roomOpts, map[string]RoomOptions{
-				roomName: roomOpt,
-			})
+			roomOpts = append(roomOpts, roomOpt)
 		}
 		if len(roomOpts) == 0 {
 			return echo.NewHTTPError(http.StatusNotFound, "No rooms were found")
@@ -131,7 +130,7 @@ func (cl *Client) GetRoomOptions(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("Room %s not found", room))
 	}
 
-	roomOpt := RoomOptions{}
+	roomOpt := RoomOptions{Name: room}
 	if err = attributevalue.UnmarshalMap(item, &roomOpt); err != nil {
 		return echo.NewHTTPError(
 			http.StatusInternalServerError,

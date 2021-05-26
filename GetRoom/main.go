@@ -48,6 +48,7 @@ func (r validRoom) isValid() bool {
 
 // RoomOptions is a struct that represents the options available for a room
 type RoomOptions struct {
+	Name         string  `json:"name,omitempty"`
 	Enabled      bool    `json:"enabled"`
 	ThresholdOn  float32 `json:"threshold_on"`
 	ThresholdOff float32 `json:"threshold_off"`
@@ -132,7 +133,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 
 	if room == "all" {
 		rooms := utils.AllButOne(validRooms, "all")
-		roomOpts := []map[string]RoomOptions{}
+		roomOpts := []RoomOptions{}
 		for _, roomName := range rooms {
 			item, err := c.GetRoomOptions(roomName)
 			if err != nil {
@@ -145,7 +146,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 			if item == nil {
 				continue
 			}
-			roomOpt := RoomOptions{}
+			roomOpt := RoomOptions{Name: roomName}
 			if err = attributevalue.UnmarshalMap(item, &roomOpt); err != nil {
 				return Response{
 					StatusCode: http.StatusInternalServerError,
@@ -153,9 +154,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 					Headers:    headers,
 				}, fmt.Errorf("Error unmarshalling DynamoDB item: %w", err)
 			}
-			roomOpts = append(roomOpts, map[string]RoomOptions{
-				roomName: roomOpt,
-			})
+			roomOpts = append(roomOpts, roomOpt)
 		}
 
 		if len(roomOpts) == 0 {
@@ -197,7 +196,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 		}, nil
 	}
 
-	roomOpt := RoomOptions{}
+	roomOpt := RoomOptions{Name: room}
 	if err = attributevalue.UnmarshalMap(item, &roomOpt); err != nil {
 		return Response{
 			StatusCode: http.StatusInternalServerError,
