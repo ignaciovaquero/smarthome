@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/igvaquero18/smarthome/api"
 	"github.com/igvaquero18/smarthome/controller"
 	"github.com/igvaquero18/smarthome/utils"
 	"github.com/spf13/viper"
@@ -34,11 +35,6 @@ var (
 	c     controller.SmartHomeInterface
 	sugar *zap.SugaredLogger
 )
-
-type auth struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
 
 // Response is of type APIGatewayProxyResponse since we're leveraging the
 // AWS Lambda Proxy Request functionality (default behavior)
@@ -90,7 +86,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 		headers["Access-Control-Allow-Origin"] = viper.GetString(corsOriginsFlag)
 	}
 
-	authParams := new(auth)
+	authParams := new(api.Auth)
 
 	if err := json.Unmarshal([]byte(request.Body), &authParams); err != nil {
 		return Response{

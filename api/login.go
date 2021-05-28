@@ -10,14 +10,16 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type auth struct {
+// Auth is a struct that holds the credentials (username and password)
+// of a particular user
+type Auth struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
 // Login returns a valid JWT token
 func (cl *Client) Login(c echo.Context) error {
-	authParams := new(auth)
+	authParams := new(Auth)
 	if err := json.NewDecoder(c.Request().Body).Decode(&authParams); err != nil {
 		return echo.NewHTTPError(
 			http.StatusBadRequest,
@@ -52,7 +54,7 @@ func (cl *Client) Login(c echo.Context) error {
 
 // SignUp is a method for creating an admin user to the SmartHome Interface
 func (cl *Client) SignUp(c echo.Context) error {
-	authParams := new(auth)
+	authParams := new(Auth)
 	if err := json.NewDecoder(c.Request().Body).Decode(&authParams); err != nil {
 		return echo.NewHTTPError(
 			http.StatusBadRequest,
