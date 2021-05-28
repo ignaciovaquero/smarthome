@@ -52,7 +52,7 @@ func (cl *Client) Login(c echo.Context) error {
 	})
 }
 
-// SignUp is a method for creating an admin user to the SmartHome Interface
+// SignUp is a method for creating an admin user to SmartHome
 func (cl *Client) SignUp(c echo.Context) error {
 	authParams := new(Auth)
 	if err := json.NewDecoder(c.Request().Body).Decode(&authParams); err != nil {
@@ -72,4 +72,9 @@ func (cl *Client) SignUp(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": "Successfully signed up",
 	})
+}
+
+// DeleteUser is a method that allows to remove an admin user from SmartHome
+func (cl *Client) DeleteUser(c echo.Context) error {
+	return nil
 }
