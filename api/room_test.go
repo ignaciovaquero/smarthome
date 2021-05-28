@@ -40,8 +40,8 @@ func TestIsValid(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(tt *testing.T) {
-			room := validRoom(tc.r)
-			actual := room.isValid()
+			room := ValidRoom(tc.r)
+			actual := room.IsValid()
 			assert.Equal(tt, tc.expected, actual)
 		})
 	}

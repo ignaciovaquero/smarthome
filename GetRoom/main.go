@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/igvaquero18/smarthome/api"
 	"github.com/igvaquero18/smarthome/controller"
 	"github.com/igvaquero18/smarthome/utils"
 	"github.com/spf13/viper"
@@ -30,29 +31,6 @@ const (
 	dynamoDBEndpointFlag     = "aws.dynamodb.endpoint"
 	dynamoDBControlTableFlag = "aws.dynamodb.tables.control"
 )
-
-var (
-	validRooms = []string{"all", "bedroom", "livingroom"}
-)
-
-type validRoom string
-
-func (r validRoom) isValid() bool {
-	for _, room := range validRooms {
-		if string(r) == room {
-			return true
-		}
-	}
-	return false
-}
-
-// RoomOptions is a struct that represents the options available for a room
-type RoomOptions struct {
-	Name         string  `json:"name,omitempty"`
-	Enabled      bool    `json:"enabled"`
-	ThresholdOn  float32 `json:"threshold_on"`
-	ThresholdOff float32 `json:"threshold_off"`
-}
 
 // Response is of type APIGatewayProxyResponse since we're leveraging the
 // AWS Lambda Proxy Request functionality (default behavior)
@@ -123,7 +101,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 
 	room := request.PathParameters["room"]
 
-	if !validRoom(room).isValid() {
+	if !api.ValidRoom(room).IsValid() {
 		return Response{
 			Body:       "Invalid room name",
 			StatusCode: http.StatusBadRequest,
@@ -132,8 +110,8 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 	}
 
 	if room == "all" {
-		rooms := utils.AllButOne(validRooms, "all")
-		roomOpts := []RoomOptions{}
+		rooms := utils.AllButOne(api.ValidRooms, "all")
+		roomOpts := []api.RoomOptions{}
 		for _, roomName := range rooms {
 			item, err := c.GetRoomOptions(roomName)
 			if err != nil {
@@ -146,7 +124,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 			if item == nil {
 				continue
 			}
-			roomOpt := RoomOptions{Name: roomName}
+			roomOpt := api.RoomOptions{Name: roomName}
 			if err = attributevalue.UnmarshalMap(item, &roomOpt); err != nil {
 				return Response{
 					StatusCode: http.StatusInternalServerError,
@@ -196,7 +174,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 		}, nil
 	}
 
-	roomOpt := RoomOptions{Name: room}
+	roomOpt := api.RoomOptions{Name: room}
 	if err = attributevalue.UnmarshalMap(item, &roomOpt); err != nil {
 		return Response{
 			StatusCode: http.StatusInternalServerError,

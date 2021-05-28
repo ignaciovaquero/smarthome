@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/igvaquero18/smarthome/api"
 	"github.com/igvaquero18/smarthome/controller"
 	"github.com/igvaquero18/smarthome/utils"
 	"github.com/spf13/viper"
@@ -33,28 +34,9 @@ const (
 )
 
 var (
-	validRooms = []string{"all", "bedroom", "livingroom"}
-	c          controller.SmartHomeInterface
-	sugar      *zap.SugaredLogger
+	c     controller.SmartHomeInterface
+	sugar *zap.SugaredLogger
 )
-
-type validRoom string
-
-func (r validRoom) isValid() bool {
-	for _, room := range validRooms {
-		if string(r) == room {
-			return true
-		}
-	}
-	return false
-}
-
-// RoomOptions is a struct that represents the options available for a room
-type RoomOptions struct {
-	Enabled      bool    `json:"enabled"`
-	ThresholdOn  float32 `json:"threshold_on"`
-	ThresholdOff float32 `json:"threshold_off"`
-}
 
 // Response is of type APIGatewayProxyResponse since we're leveraging the
 // AWS Lambda Proxy Request functionality (default behavior)
@@ -118,7 +100,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 
 	room := request.PathParameters["room"]
 
-	if !validRoom(room).isValid() {
+	if !api.ValidRoom(room).IsValid() {
 		return Response{
 			Body:       "Invalid room name",
 			StatusCode: http.StatusBadRequest,
@@ -126,7 +108,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 		}, nil
 	}
 
-	r := new(RoomOptions)
+	r := new(api.RoomOptions)
 
 	if err := json.Unmarshal([]byte(request.Body), &r); err != nil {
 		return Response{
@@ -147,7 +129,7 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 	rooms := []string{room}
 
 	if room == "all" {
-		rooms = utils.AllButOne(validRooms, "all")
+		rooms = utils.AllButOne(api.ValidRooms, "all")
 	}
 
 	for _, roomName := range rooms {

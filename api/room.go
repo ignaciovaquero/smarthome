@@ -12,12 +12,15 @@ import (
 
 const roomParam = "room"
 
-var validRooms = []string{"all", "bedroom", "livingroom"}
+var ValidRooms = []string{"all", "bedroom", "livingroom"}
 
-type validRoom string
+// ValidRoom is an alias to string that allow us to check whether a particular room
+// name is valid
+type ValidRoom string
 
-func (r validRoom) isValid() bool {
-	for _, room := range validRooms {
+// IsValid checks whether the name of the room is valid
+func (r ValidRoom) IsValid() bool {
+	for _, room := range ValidRooms {
 		if string(r) == room {
 			return true
 		}
@@ -38,10 +41,10 @@ type RoomOptions struct {
 func (cl *Client) SetRoomOptions(c echo.Context) error {
 	room := c.Param(roomParam)
 
-	if !validRoom(room).isValid() {
+	if !ValidRoom(room).IsValid() {
 		return echo.NewHTTPError(
 			http.StatusBadRequest,
-			fmt.Sprintf("Invalid room name %s. Valid rooms: %v", room, validRooms),
+			fmt.Sprintf("Invalid room name %s. Valid rooms: %v", room, ValidRooms),
 		)
 	}
 
@@ -64,7 +67,7 @@ func (cl *Client) SetRoomOptions(c echo.Context) error {
 	rooms := []string{room}
 
 	if room == "all" {
-		rooms = utils.AllButOne(validRooms, "all")
+		rooms = utils.AllButOne(ValidRooms, "all")
 	}
 
 	for _, roomName := range rooms {
@@ -88,15 +91,15 @@ func (cl *Client) SetRoomOptions(c echo.Context) error {
 func (cl *Client) GetRoomOptions(c echo.Context) error {
 	room := c.Param(roomParam)
 
-	if !validRoom(room).isValid() {
+	if !ValidRoom(room).IsValid() {
 		return echo.NewHTTPError(
 			http.StatusBadRequest,
-			fmt.Sprintf("Invalid room name %s. Valid rooms: %v", room, validRooms),
+			fmt.Sprintf("Invalid room name %s. Valid rooms: %v", room, ValidRooms),
 		)
 	}
 
 	if room == "all" {
-		rooms := utils.AllButOne(validRooms, "all")
+		rooms := utils.AllButOne(ValidRooms, "all")
 		roomOpts := []RoomOptions{}
 		for _, roomName := range rooms {
 			item, err := cl.SmartHomeInterface.GetRoomOptions(roomName)
