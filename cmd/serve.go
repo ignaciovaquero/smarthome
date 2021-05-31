@@ -122,6 +122,7 @@ func serve(cmd *cobra.Command, args []string) {
 		room.Use(middleware.JWT([]byte(jwtSecret)))
 		e.POST(fmt.Sprintf("%s/login", apiVersion), s.Login)
 		e.POST(fmt.Sprintf("%s/signup", apiVersion), s.SignUp)
+		e.DELETE(fmt.Sprintf("%s/user", apiVersion), s.DeleteUser)
 	} else {
 		sugar.Warn("no jwt secret provided, disabling authentication")
 	}

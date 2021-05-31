@@ -13,6 +13,7 @@ build: gomodgen
 	env GOOS=linux go build -ldflags="-s -w" -o bin/getroom GetRoom/main.go
 	env GOOS=linux go build -ldflags="-s -w" -o bin/login Login/main.go
 	env GOOS=linux go build -ldflags="-s -w" -o bin/signup SignUp/main.go
+	env GOOS=linux go build -ldflags="-s -w" -o bin/deleteuser DeleteUser/main.go
 
 clean:
 	rm -rf ./bin ./vendor go.sum .serverless

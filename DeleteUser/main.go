@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/igvaquero18/smarthome/api"
 	"github.com/igvaquero18/smarthome/controller"
 	"github.com/igvaquero18/smarthome/utils"
@@ -18,8 +16,6 @@ import (
 )
 
 const (
-	jwtSecretEnv         = "SMARTHOME_JWT_SECRET"
-	jwtExpirationEnv     = "SMARTHOME_JWT_EXPIRATION"
 	awsRegionEnv         = "SMARTHOME_AWS_REGION"
 	verboseEnv           = "SMARTHOME_VERBOSE"
 	corsOriginsEnv       = "SMARTHOME_CORS_ORIGINS"
@@ -28,8 +24,6 @@ const (
 )
 
 const (
-	jwtSecretFlag         = "server.jwt.secret"
-	jwtExpirationFlag     = "server.jwt.expiration"
 	awsRegionFlag         = "aws.region"
 	verboseFlag           = "logging.verbose"
 	corsOriginsFlag       = "cors.origins"
@@ -38,9 +32,8 @@ const (
 )
 
 var (
-	c          controller.SmartHomeInterface
-	sugar      *zap.SugaredLogger
-	expiration time.Duration
+	c     controller.SmartHomeInterface
+	sugar *zap.SugaredLogger
 )
 
 // Response is of type APIGatewayProxyResponse since we're leveraging the
@@ -50,14 +43,11 @@ var (
 type Response events.APIGatewayProxyResponse
 
 func init() {
-	viper.SetDefault(jwtSecretFlag, "1h")
 	viper.SetDefault(awsRegionFlag, "us-east-3")
 	viper.SetDefault(verboseFlag, false)
 	viper.SetDefault(corsOriginsFlag, "")
 	viper.SetDefault(dynamoDBEndpointFlag, "")
 	viper.SetDefault(dynamoDBAuthTableFlag, controller.DefaultAuthTable)
-	viper.BindEnv(jwtSecretFlag, jwtSecretEnv)
-	viper.BindEnv(jwtExpirationFlag, jwtExpirationEnv)
 	viper.BindEnv(awsRegionFlag, awsRegionEnv)
 	viper.BindEnv(verboseFlag, verboseEnv)
 	viper.BindEnv(corsOriginsFlag, corsOriginsEnv)
@@ -80,12 +70,6 @@ func init() {
 		sugar.Fatalw("error creating DynamoDB client", "error", err.Error())
 	}
 
-	expiration, err = time.ParseDuration(viper.GetString(jwtExpirationFlag))
-
-	if err != nil {
-		sugar.Fatalw("invalid parameters for the JWT expiration time", "expiration", viper.GetString(jwtExpirationFlag))
-	}
-
 	c = controller.NewSmartHome(
 		controller.SetLogger(sugar),
 		controller.SetDynamoDBClient(dynamoClient),
@@ -106,48 +90,22 @@ func Handler(request events.APIGatewayProxyRequest) (Response, error) {
 
 	if err := json.Unmarshal([]byte(request.Body), &authParams); err != nil {
 		return Response{
-			Body:       fmt.Sprintf("No valid username or password provided: %s", err.Error()),
+			Body:       fmt.Sprintf("Invalid payload: %s", err.Error()),
 			StatusCode: http.StatusBadRequest,
 			Headers:    headers,
 		}, nil
 	}
 
-	if err := c.Authenticate(authParams.Username, authParams.Password); err != nil {
+	if err := c.DeleteUser(authParams.Username); err != nil {
 		return Response{
-			Body:       fmt.Sprintf("Wrong username or password: %s", err.Error()),
-			StatusCode: http.StatusForbidden,
+			Body:       fmt.Sprintf("Error when deleting user from DynamoDB: %s", err.Error()),
+			StatusCode: http.StatusInternalServerError,
 			Headers:    headers,
 		}, nil
 	}
 
-	token := jwt.New(jwt.SigningMethodHS256)
-	claims := token.Claims.(jwt.MapClaims)
-	claims["sub"] = authParams.Username
-	claims["exp"] = time.Now().Add(expiration).Unix()
-
-	t, err := token.SignedString([]byte(viper.GetString(jwtSecretFlag)))
-	if err != nil {
-		return Response{
-			Body:       fmt.Sprintf("error signing token: %s", err.Error()),
-			StatusCode: http.StatusInternalServerError,
-			Headers:    headers,
-		}, fmt.Errorf("error signing token: %w", err)
-	}
-
-	body, err := json.Marshal(map[string]string{
-		"token": t,
-	})
-
-	if err != nil {
-		return Response{
-			Body:       fmt.Sprintf("Error marshalling token: %s", err.Error()),
-			StatusCode: http.StatusInternalServerError,
-			Headers:    headers,
-		}, fmt.Errorf("Error marshalling token: %w", err)
-	}
-
 	return Response{
-		Body:       string(body),
+		Body:       "Successfully deleted user",
 		StatusCode: http.StatusOK,
 		Headers:    headers,
 	}, nil

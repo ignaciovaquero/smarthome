@@ -76,5 +76,21 @@ func (cl *Client) SignUp(c echo.Context) error {
 
 // DeleteUser is a method that allows to remove an admin user from SmartHome
 func (cl *Client) DeleteUser(c echo.Context) error {
-	return nil
+	authParams := new(Auth)
+	if err := json.NewDecoder(c.Request().Body).Decode(&authParams); err != nil {
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			fmt.Sprintf("Invalid payload: %s", err.Error()),
+		)
+	}
+	if err := cl.SmartHomeInterface.DeleteUser(authParams.Username); err != nil {
+		return echo.NewHTTPError(
+			http.StatusInternalServerError,
+			"Error when deleting user from DynamoDB: %s", err.Error(),
+		)
+	}
+	return c.JSON(http.StatusOK, map[string]string{
+		"message": "Successfully deleted user",
+		"user":    authParams.Username,
+	})
 }
