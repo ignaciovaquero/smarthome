@@ -31,7 +31,7 @@ provider:
         description: API Key for accessing SmartHome API
     usagePlan:
       quota:
-        limit: 1
+        limit: 5
         offset: 0
         period: DAY
       throttle:
@@ -116,6 +116,16 @@ functions:
           cors:
             origins:
               - https://smarthome.ivaquero.es
+  deleteuser:
+    handler: bin/deleteuser
+    events:
+      -http:
+        path: user
+        private: true
+        method: delete
+        cors:
+          origins:
+            - https://smarthome.ivaquero.es
 
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events

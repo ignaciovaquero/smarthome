@@ -31,6 +31,7 @@ type SmartHomeInterface interface {
 	SetCredentials(username, password string) error
 	SetRoomOptions(room string, enabled bool, thresholdOn, thresholdOff float32) error
 	GetRoomOptions(room string) (map[string]types.AttributeValue, error)
+	DeleteUser(username string) error
 }
 
 // SmartHome is a struct that defines the API actions for
