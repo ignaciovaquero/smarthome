@@ -119,13 +119,13 @@ functions:
   deleteuser:
     handler: bin/deleteuser
     events:
-      -http:
-        path: user
-        private: true
-        method: delete
-        cors:
-          origins:
-            - https://smarthome.ivaquero.es
+      - http:
+          path: user
+          private: true
+          method: delete
+          cors:
+            origins:
+              - https://smarthome.ivaquero.es
 
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
