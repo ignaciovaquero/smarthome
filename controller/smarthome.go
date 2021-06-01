@@ -31,6 +31,7 @@ type SmartHomeInterface interface {
 	SetCredentials(username, password string) error
 	SetRoomOptions(room string, enabled bool, thresholdOn, thresholdOff float32) error
 	GetRoomOptions(room string) (map[string]types.AttributeValue, error)
+	DeleteRoomOptions(room string) error
 	DeleteUser(username string) error
 }
 
@@ -135,4 +136,12 @@ func (s *SmartHome) get(hashkey, object, table string) (map[string]types.Attribu
 	}
 
 	return output.Item, nil
+}
+
+func (s *SmartHome) delete(hashkey, object, table string) error {
+	_, err := s.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
+		TableName: &table,
+		Key:       map[string]types.AttributeValue{hashkey: &types.AttributeValueMemberS{Value: object}},
+	})
+	return err
 }
