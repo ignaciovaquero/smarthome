@@ -97,6 +97,19 @@ functions:
             parameters:
               paths:
                 room: true
+  deleteroom:
+    handler: bin/deleteroom
+    events:
+      - http:
+          path: room/{room}
+          method: delete
+          cors:
+            origins:
+              - https://smarthome.ivaquero.es
+          request:
+            parameters:
+              paths:
+                room: true
   login:
     handler: bin/login
     events:

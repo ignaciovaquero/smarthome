@@ -79,11 +79,11 @@ func (cl *Client) SetRoomOptions(c echo.Context) error {
 	return c.JSON(http.StatusOK, struct {
 		Message string      `json:"message"`
 		Code    int         `json:"status_code"`
-		Item    RoomOptions `json:"item"`
+		Options RoomOptions `json:"options"`
 	}{
 		Message: "successfully set room options",
 		Code:    http.StatusOK,
-		Item:    *r,
+		Options: *r,
 	})
 }
 
@@ -142,4 +142,30 @@ func (cl *Client) GetRoomOptions(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, roomOpt)
+}
+
+func (cl *Client) DeleteRoomOptions(c echo.Context) error {
+	room := c.Param(roomParam)
+	if !ValidRoom(room).IsValid() {
+		return echo.NewHTTPError(
+			http.StatusBadRequest,
+			fmt.Sprintf("Invalid room name %s. Valid rooms: %v", room, ValidRooms),
+		)
+	}
+	if room == "all" {
+		for _, r := range ValidRooms {
+			if err := cl.SmartHomeInterface.DeleteRoomOptions(r); err != nil {
+				return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+			}
+		}
+	} else {
+		if err := cl.SmartHomeInterface.DeleteRoomOptions(room); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		}
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"message":     "successfully deleted room options",
+		"status_code": http.StatusOK,
+		"room":        room,
+	})
 }

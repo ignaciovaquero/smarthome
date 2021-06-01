@@ -24,6 +24,7 @@ jobs:
           env GOOS=linux go build -ldflags="-s -w" -o bin/login Login/main.go
           env GOOS=linux go build -ldflags="-s -w" -o bin/signup SignUp/main.go
           env GOOS=linux go build -ldflags="-s -w" -o bin/deleteuser DeleteUser/main.go
+          env GOOS=linux go build -ldflags="-s -w" -o bin/deleteroom DeleteRoom/main.go
       - name: Deploy the project
         uses: serverless/github-action@master
         with:

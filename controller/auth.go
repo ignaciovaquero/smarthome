@@ -55,11 +55,7 @@ func (s *SmartHome) SetCredentials(username, password string) error {
 // DeleteUser deletes a user from the DynamoDB table
 func (s *SmartHome) DeleteUser(username string) error {
 	s.Debugw("Deleting user", "user", username)
-	_, err := s.DeleteItem(context.TODO(), &dynamodb.DeleteItemInput{
-		TableName: &s.Config.AuthTable,
-		Key:       map[string]types.AttributeValue{"Username": &types.AttributeValueMemberS{Value: username}},
-	})
-	if err != nil {
+	if err := s.delete("Username", username, s.Config.AuthTable); err != nil {
 		return fmt.Errorf("error when deleting user %s from the DynamoDB table: %w", username, err)
 	}
 	s.Debugw("successfully deleted user from the DynamoDB table", "user", username)

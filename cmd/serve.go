@@ -128,6 +128,7 @@ func serve(cmd *cobra.Command, args []string) {
 	}
 	room.POST("/:room", s.SetRoomOptions)
 	room.GET("/:room", s.GetRoomOptions)
+	room.DELETE("/:room", s.DeleteRoomOptions)
 	p := prometheus.NewPrometheus("smarthome", nil)
 	p.Use(e)
 

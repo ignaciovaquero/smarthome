@@ -61,3 +61,13 @@ func (s *SmartHome) GetRoomOptions(room string) (map[string]types.AttributeValue
 
 	return roomOptions, nil
 }
+
+// DeleteRoomOptions Deletes all the options for a given room
+func (s *SmartHome) DeleteRoomOptions(room string) error {
+	s.Debugw("removing item from DynamoDB", "room", room)
+	if err := s.delete("Room", room, s.Config.ControlPlaneTable); err != nil {
+		return fmt.Errorf("error when deleting room %s from DynamoDB: %w", room, err)
+	}
+	s.Debugw("successfully deleted item", "room", room)
+	return nil
+}
