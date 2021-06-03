@@ -2,8 +2,10 @@ package api
 
 import (
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/igvaquero18/smarthome/controller"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,41 +31,32 @@ func (m *mockSmartHome) DeleteUser(username string) error {
 }
 
 func TestNewClient(t *testing.T) {
+	m := &mockSmartHome{}
 	testCases := []struct {
-		name     string
-		r        string
-		expected bool
+		name      string
+		config    JWTConfig
+		smarthome controller.SmartHomeInterface
+		expected  *Client
 	}{
 		{
-			name:     "Test home room",
-			r:        "all",
-			expected: true,
-		},
-		{
-			name:     "Test bedroom room",
-			r:        "bedroom",
-			expected: true,
-		},
-		{
-			name:     "Test living room",
-			r:        "livingroom",
-			expected: true,
-		},
-		{
-			name:     "Test invalid room",
-			r:        "invalid",
-			expected: false,
-		},
-		{
-			name:     "Test empty room",
-			r:        "",
-			expected: false,
+			name: "Creating a new client with config and interface",
+			config: JWTConfig{
+				JWTSecret:     "secret",
+				JWTExpiration: time.Hour,
+			},
+			smarthome: m,
+			expected: &Client{
+				Config: JWTConfig{
+					JWTSecret:     "secret",
+					JWTExpiration: time.Hour,
+				},
+				SmartHomeInterface: m,
+			},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(tt *testing.T) {
-			room := ValidRoom(tc.r)
-			actual := room.IsValid()
+			actual := NewClient(tc.config, tc.smarthome)
 			assert.Equal(tt, tc.expected, actual)
 		})
 	}
