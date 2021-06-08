@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -141,43 +142,105 @@ func TestGetRoomOptions(t *testing.T) {
 		ctx           mockContext
 		cl            *Client
 		errorExpected bool
+		expected      interface{}
 	}{
 		{
 			name: "All rooms, no controller errors",
 			ctx: &baseMockContext{
 				Parameter: "all",
 			},
-			cl:            NewClient(JWTConfig{}, &mockSmartHome{}),
+			cl: NewClient(JWTConfig{}, &mockSmartHome{
+				BedroomOpts: map[string]types.AttributeValue{
+					"Name":         &types.AttributeValueMemberS{Value: "bedroom"},
+					"ThresholdOn":  &types.AttributeValueMemberN{Value: "19.3"},
+					"ThresholdOff": &types.AttributeValueMemberN{Value: "19.5"},
+					"Enabled":      &types.AttributeValueMemberBOOL{Value: true},
+				},
+				LivingRoomOpts: map[string]types.AttributeValue{
+					"Name":         &types.AttributeValueMemberS{Value: "livingroom"},
+					"ThresholdOn":  &types.AttributeValueMemberN{Value: "19.3"},
+					"ThresholdOff": &types.AttributeValueMemberN{Value: "19.5"},
+					"Enabled":      &types.AttributeValueMemberBOOL{Value: true},
+				},
+			}),
 			errorExpected: false,
-		},
-		{
-			name: "Valid Payload, bedroom, no controller errors",
-			ctx: &baseMockContext{
-				Parameter: "bedroom",
+			expected: []RoomOptions{
+				{
+					Name:         "bedroom",
+					ThresholdOn:  19.3,
+					ThresholdOff: 19.5,
+					Enabled:      true,
+				},
+				{
+					Name:         "livingroom",
+					ThresholdOn:  19.3,
+					ThresholdOff: 19.5,
+					Enabled:      true,
+				},
 			},
-			cl:            NewClient(JWTConfig{}, &mockSmartHome{}),
-			errorExpected: false,
 		},
 		{
-			name: "Valid Payload, livingroom, no controller errors",
+			name: "All rooms, no results found",
 			ctx: &baseMockContext{
-				Parameter: "livingroom",
-			},
-			cl:            NewClient(JWTConfig{}, &mockSmartHome{}),
-			errorExpected: false,
-		},
-		{
-			name: "Invalid room parameter",
-			ctx: &baseMockContext{
-				Parameter: "fakeroom",
+				Parameter: "all",
 			},
 			cl:            NewClient(JWTConfig{}, &mockSmartHome{}),
 			errorExpected: true,
 		},
 		{
-			name: "Threshold on is greater than threshold off",
+			name: "Bedroom, results are found",
 			ctx: &baseMockContext{
-				Parameter: "all",
+				Parameter: "bedroom",
+			},
+			cl: NewClient(JWTConfig{}, &mockSmartHome{
+				BedroomOpts: map[string]types.AttributeValue{
+					"Name":         &types.AttributeValueMemberS{Value: "bedroom"},
+					"ThresholdOn":  &types.AttributeValueMemberN{Value: "19.3"},
+					"ThresholdOff": &types.AttributeValueMemberN{Value: "19.5"},
+					"Enabled":      &types.AttributeValueMemberBOOL{Value: true},
+				},
+			}),
+			errorExpected: false,
+			expected: RoomOptions{
+				Name:         "bedroom",
+				ThresholdOn:  19.3,
+				ThresholdOff: 19.5,
+				Enabled:      true,
+			},
+		},
+		{
+			name: "Bedroom, no results found",
+			ctx: &baseMockContext{
+				Parameter: "bedroom",
+			},
+			cl:            NewClient(JWTConfig{}, &mockSmartHome{}),
+			errorExpected: true,
+		},
+		{
+			name: "Livingroom, results are found",
+			ctx: &baseMockContext{
+				Parameter: "livingroom",
+			},
+			cl: NewClient(JWTConfig{}, &mockSmartHome{
+				LivingRoomOpts: map[string]types.AttributeValue{
+					"Name":         &types.AttributeValueMemberS{Value: "livingroom"},
+					"ThresholdOn":  &types.AttributeValueMemberN{Value: "19.3"},
+					"ThresholdOff": &types.AttributeValueMemberN{Value: "19.5"},
+					"Enabled":      &types.AttributeValueMemberBOOL{Value: true},
+				},
+			}),
+			errorExpected: false,
+			expected: RoomOptions{
+				Name:         "livingroom",
+				ThresholdOn:  19.3,
+				ThresholdOff: 19.5,
+				Enabled:      true,
+			},
+		},
+		{
+			name: "Invalid room parameter",
+			ctx: &baseMockContext{
+				Parameter: "fakeroom",
 			},
 			cl:            NewClient(JWTConfig{}, &mockSmartHome{}),
 			errorExpected: true,
@@ -195,6 +258,100 @@ func TestGetRoomOptions(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(tt *testing.T) {
 			err := tc.cl.GetRoomOptions(tc.ctx)
+			if tc.errorExpected {
+				assert.Error(tt, err)
+				assert.IsType(tt, &echo.HTTPError{}, err)
+				return
+			}
+			if tc.ctx.GetParameter() == "all" {
+				actual, ok := tc.ctx.GetJSONPayload().([]RoomOptions)
+				if !ok {
+					assert.Fail(tt, "Actual should be of type []RoomOptions")
+				}
+				expected, ok := tc.expected.([]RoomOptions)
+				if !ok {
+					assert.Fail(tt, "Expected should be of type []RoomOptions")
+				}
+				assert.Equal(tt, expected, actual)
+			} else {
+				actual, ok := tc.ctx.GetJSONPayload().(RoomOptions)
+				if !ok {
+					assert.Fail(tt, "Actual should be of type RoomOptions")
+				}
+				expected, ok := tc.expected.(RoomOptions)
+				if !ok {
+					assert.Fail(tt, "Expected should be of type RoomOptions")
+				}
+				assert.Equal(tt, expected, actual)
+			}
+			assert.NoError(tt, err)
+		})
+	}
+}
+
+func TestDeleteRoomOptions(t *testing.T) {
+	testCases := []struct {
+		name          string
+		ctx           mockContext
+		cl            *Client
+		errorExpected bool
+	}{
+		{
+			name: "All rooms, no controller errors",
+			ctx: &baseMockContext{
+				Parameter: "all",
+			},
+			cl:            NewClient(JWTConfig{}, &mockSmartHome{}),
+			errorExpected: false,
+		},
+		{
+			name: "Bedroom",
+			ctx: &baseMockContext{
+				Parameter: "bedroom",
+			},
+			cl:            NewClient(JWTConfig{}, &mockSmartHome{}),
+			errorExpected: false,
+		},
+		{
+			name: "Livingroom",
+			ctx: &baseMockContext{
+				Parameter: "livingroom",
+			},
+			cl:            NewClient(JWTConfig{}, &mockSmartHome{}),
+			errorExpected: false,
+		},
+		{
+			name: "Invalid room parameter",
+			ctx: &baseMockContext{
+				Parameter: "fakeroom",
+			},
+			cl:            NewClient(JWTConfig{}, &mockSmartHome{}),
+			errorExpected: true,
+		},
+		{
+			name: "All rooms, controller errors",
+			ctx: &baseMockContext{
+				Parameter: "all",
+			},
+			cl: NewClient(JWTConfig{}, &mockSmartHome{
+				Err: fmt.Errorf("Error"),
+			}),
+			errorExpected: true,
+		},
+		{
+			name: "Bedroom, controller errors",
+			ctx: &baseMockContext{
+				Parameter: "bedroom",
+			},
+			cl: NewClient(JWTConfig{}, &mockSmartHome{
+				Err: fmt.Errorf("Error"),
+			}),
+			errorExpected: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			err := tc.cl.DeleteRoomOptions(tc.ctx)
 			if tc.errorExpected {
 				assert.Error(tt, err)
 				assert.IsType(tt, &echo.HTTPError{}, err)

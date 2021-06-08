@@ -16,6 +16,8 @@ import (
 type mockContext interface {
 	echo.Context
 	GetToken(secret string) *jwt.Token
+	GetJSONPayload() interface{}
+	GetParameter() string
 }
 
 type baseMockContext struct {
@@ -37,6 +39,14 @@ func (base *baseMockContext) GetToken(secret string) *jwt.Token {
 		return []byte(secret), nil
 	})
 	return tok
+}
+
+func (base *baseMockContext) GetJSONPayload() interface{} {
+	return base.JSONPayload
+}
+
+func (base *baseMockContext) GetParameter() string {
+	return base.Parameter
 }
 
 func (base *baseMockContext) Request() *http.Request {
@@ -263,7 +273,9 @@ func (base *baseMockContext) Reset(r *http.Request, w http.ResponseWriter) {
 }
 
 type mockSmartHome struct {
-	Err error
+	BedroomOpts    map[string]types.AttributeValue
+	LivingRoomOpts map[string]types.AttributeValue
+	Err            error
 }
 
 func (m *mockSmartHome) Authenticate(username, password string) error {
@@ -276,7 +288,13 @@ func (m *mockSmartHome) SetRoomOptions(room string, enabled bool, thresholdOn, t
 	return m.Err
 }
 func (m *mockSmartHome) GetRoomOptions(room string) (map[string]types.AttributeValue, error) {
-	return map[string]types.AttributeValue{}, nil
+	opts := map[string]types.AttributeValue{}
+	if room == "bedroom" {
+		opts = m.BedroomOpts
+	} else if room == "livingroom" {
+		opts = m.LivingRoomOpts
+	}
+	return opts, m.Err
 }
 func (m *mockSmartHome) DeleteRoomOptions(room string) error {
 	return m.Err
