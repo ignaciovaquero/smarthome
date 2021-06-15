@@ -1,13 +1,16 @@
-.PHONY: build-dev build clean deploy gomodgen remove dev
+.PHONY: test build-dev build clean deploy gomodgen remove dev
 
 AWS_REGION ?= eu-west-3
 SMARTHOME_JWT_SECRET ?= secret
 
-build-dev:
+test:
+	go test ./...
+
+build-dev: test
 	go mod tidy
 	go build
 
-build: gomodgen
+build: test gomodgen
 	export GO111MODULE=on
 	env GOOS=linux go build -ldflags="-s -w" -o bin/setroom SetRoom/main.go
 	env GOOS=linux go build -ldflags="-s -w" -o bin/getroom GetRoom/main.go

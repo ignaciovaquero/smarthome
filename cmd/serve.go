@@ -109,7 +109,7 @@ func serve(cmd *cobra.Command, args []string) {
 	}))
 
 	if len(origins) > 0 {
-		if err := utils.ValidateURLsFromArray(origins); err != nil {
+		if err = utils.ValidateOriginURLsFromArray(origins); err != nil {
 			sugar.Fatalw("invalid CORS URLs provided", "error", err.Error())
 		}
 		e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
