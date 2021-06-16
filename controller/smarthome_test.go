@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,6 +16,22 @@ var defaultConfig *SmartHomeConfig = &SmartHomeConfig{
 	ControlPlaneTable: DefaultControlPlaneTable,
 	TempOutsideTable:  DefaultTempOutsideTable,
 	TempInsideTable:   DefaultTempInsideTable,
+}
+
+func getLocalClient() *dynamodb.Client {
+	customResolver := aws.EndpointResolverFunc(func(service, awsRegion string) (aws.Endpoint, error) {
+		return aws.Endpoint{
+			PartitionID:   "aws",
+			URL:           "http://127.0.0.1:8000",
+			SigningRegion: awsRegion,
+		}, nil
+	})
+	cfg, _ := config.LoadDefaultConfig(
+		context.TODO(),
+		config.WithRegion("us-east-1"),
+		config.WithEndpointResolver(customResolver),
+	)
+	return dynamodb.NewFromConfig(cfg)
 }
 
 func TestSetLogger(t *testing.T) {
@@ -177,9 +194,9 @@ func TestSetDynamoDBClient(t *testing.T) {
 			name:   "Set local DynamoDB Client",
 			client: localClient,
 			expected: &SmartHome{
-				Logger: &DefaultLogger{},
-				Config: defaultConfig,
-				Client: localClient,
+				Logger:            &DefaultLogger{},
+				Config:            defaultConfig,
+				DynamoDBInterface: localClient,
 			},
 		},
 		{
@@ -204,18 +221,23 @@ func TestSetDynamoDBClient(t *testing.T) {
 	}
 }
 
-func getLocalClient() *dynamodb.Client {
-	customResolver := aws.EndpointResolverFunc(func(service, awsRegion string) (aws.Endpoint, error) {
-		return aws.Endpoint{
-			PartitionID:   "aws",
-			URL:           "http://127.0.0.1:8000",
-			SigningRegion: awsRegion,
-		}, nil
-	})
-	cfg, _ := config.LoadDefaultConfig(
-		context.TODO(),
-		config.WithRegion("us-east-1"),
-		config.WithEndpointResolver(customResolver),
-	)
-	return dynamodb.NewFromConfig(cfg)
+func TestGet(t *testing.T) {
+	testCases := []struct {
+		name,
+		hashkey,
+		object,
+		table string
+		client      DynamoDBInterface
+		expected    map[string]types.AttributeValue
+		expectedErr bool
+	}{
+		{
+			name: "Get existing item",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+
+		})
+	}
 }

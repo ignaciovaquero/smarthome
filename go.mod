@@ -27,6 +27,7 @@ require (
 	golang.org/x/crypto v0.0.0-20210415154028-4f45737414dc
 	golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c // indirect
 	golang.org/x/text v0.3.5 // indirect
+	golang.org/x/tools v0.0.0-20191112195655-aa38f8e97acc
 	gopkg.in/ini.v1 v1.62.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

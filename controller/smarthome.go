@@ -35,11 +35,19 @@ type SmartHomeInterface interface {
 	DeleteUser(username string) error
 }
 
+// DynamoDBInterface is an interface implemented by the dynamodb.Client that allow
+// us to mock its calls during unit testing
+type DynamoDBInterface interface {
+	GetItem(context.Context, *dynamodb.GetItemInput, ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
+	PutItem(context.Context, *dynamodb.PutItemInput, ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
+	DeleteItem(context.Context, *dynamodb.DeleteItemInput, ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error)
+}
+
 // SmartHome is a struct that defines the API actions for
 // Smarthome app
 type SmartHome struct {
 	Logger
-	*dynamodb.Client
+	DynamoDBInterface
 	Config *SmartHomeConfig
 }
 
@@ -91,10 +99,10 @@ func SetLogger(logger Logger) Option {
 }
 
 // SetDynamoDBClient sets the DynamoDB client for the API
-func SetDynamoDBClient(client *dynamodb.Client) Option {
+func SetDynamoDBClient(client DynamoDBInterface) Option {
 	return func(s *SmartHome) Option {
-		prev := s.Client
-		s.Client = client
+		prev := s.DynamoDBInterface
+		s.DynamoDBInterface = client
 		return SetDynamoDBClient(prev)
 	}
 }
