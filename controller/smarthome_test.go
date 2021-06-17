@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -232,12 +233,108 @@ func TestGet(t *testing.T) {
 		expectedErr bool
 	}{
 		{
-			name: "Get existing item",
+			name:    "Get existing item",
+			hashkey: "Item",
+			object:  "1",
+			table:   "table",
+			client: &mockDynamoClient{
+				getItemOutput: &dynamodb.GetItemOutput{
+					Item: map[string]types.AttributeValue{
+						"Item": &types.AttributeValueMemberS{Value: "1"},
+					},
+				},
+			},
+			expected: map[string]types.AttributeValue{
+				"Item": &types.AttributeValueMemberS{Value: "1"},
+			},
+			expectedErr: false,
+		},
+		{
+			name:    "Error from DynamoDB client",
+			hashkey: "Item",
+			object:  "1",
+			table:   "table",
+			client: &mockDynamoClient{
+				getItemOutput: &dynamodb.GetItemOutput{
+					Item: map[string]types.AttributeValue{
+						"Item": &types.AttributeValueMemberS{Value: "1"},
+					},
+				},
+				err: fmt.Errorf("Error"),
+			},
+			expected: map[string]types.AttributeValue{
+				"Item": &types.AttributeValueMemberS{Value: "1"},
+			},
+			expectedErr: true,
+		},
+		{
+			name:    "Non existing item",
+			hashkey: "Item",
+			object:  "2",
+			table:   "table",
+			client: &mockDynamoClient{
+				getItemOutput: &dynamodb.GetItemOutput{
+					Item: nil,
+				},
+			},
+			expected:    nil,
+			expectedErr: false,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(tt *testing.T) {
+			sh := NewSmartHome(SetDynamoDBClient(tc.client))
+			actual, err := sh.get(tc.hashkey, tc.object, tc.table)
+			if tc.expectedErr {
+				assert.Error(tt, err)
+				return
+			}
+			assert.NoError(tt, err)
+			assert.ObjectsAreEqual(tc.expected, actual)
+		})
+	}
+}
 
+func TestDelete(t *testing.T) {
+	testCases := []struct {
+		name,
+		hashkey,
+		object,
+		table string
+		client      DynamoDBInterface
+		expectedErr bool
+	}{
+		{
+			name:    "Delete existing item",
+			hashkey: "Item",
+			object:  "1",
+			table:   "table",
+			client: &mockDynamoClient{
+				deleteItemOutput: &dynamodb.DeleteItemOutput{},
+			},
+			expectedErr: false,
+		},
+		{
+			name:    "Error deleting item",
+			hashkey: "Item",
+			object:  "1",
+			table:   "table",
+			client: &mockDynamoClient{
+				deleteItemOutput: &dynamodb.DeleteItemOutput{},
+				err:              fmt.Errorf("Error"),
+			},
+			expectedErr: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			sh := NewSmartHome(SetDynamoDBClient(tc.client))
+			err := sh.delete(tc.hashkey, tc.object, tc.table)
+			if tc.expectedErr {
+				assert.Error(tt, err)
+				return
+			}
+			assert.NoError(tt, err)
 		})
 	}
 }

@@ -21,6 +21,44 @@ func (m *mockDynamoClient) PutItem(ctx context.Context, input *dynamodb.PutItemI
 	return m.putItemOutput, m.err
 }
 
-func (m *mockDynamoClient) DeleteItem(ctx context.Context, input *dynamodb.DeleteItemOutput, opts ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error) {
+func (m *mockDynamoClient) DeleteItem(ctx context.Context, input *dynamodb.DeleteItemInput, opts ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error) {
 	return m.deleteItemOutput, m.err
+}
+
+type mockLogger struct{}
+
+func (m mockLogger) Debug(...interface{}) {
+	return
+}
+
+func (m mockLogger) Debugf(string, ...interface{}) {
+	return
+}
+
+func (m mockLogger) Debugw(string, ...interface{}) {
+	return
+}
+
+func (m mockLogger) Error(...interface{}) {
+	return
+}
+
+func (m mockLogger) Errorf(string, ...interface{}) {
+	return
+}
+
+func (m mockLogger) Errorw(string, ...interface{}) {
+	return
+}
+
+func (m mockLogger) Info(...interface{}) {
+	return
+}
+
+func (m mockLogger) Infof(string, ...interface{}) {
+	return
+}
+
+func (m mockLogger) Infow(string, ...interface{}) {
+	return
 }
