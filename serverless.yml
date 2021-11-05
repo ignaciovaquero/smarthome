@@ -40,7 +40,7 @@ provider:
   environment:
     SMARTHOME_AWS_REGION: eu-west-3
     SMARTHOME_JWT_SECRET: ${ssm:SMARTHOME_JWT_TOKEN~true}
-    SMARTHOME_CORS_ORIGINS: "https://smarthome.ivaquero.es"
+    SMARTHOME_CORS_ORIGINS: "https://smarthome.ignaciovaquero.com"
     SMARTHOME_JWT_EXPIRATION: 15m
 
   # you can overwrite defaults here
@@ -79,7 +79,7 @@ functions:
           method: post
           cors:
             origins:
-              - https://smarthome.ivaquero.es
+              - https://smarthome.ignaciovaquero.com
           request:
             parameters:
               paths:
@@ -92,7 +92,7 @@ functions:
           method: get
           cors:
             origins:
-              - https://smarthome.ivaquero.es
+              - https://smarthome.ignaciovaquero.com
           request:
             parameters:
               paths:
@@ -105,7 +105,7 @@ functions:
           method: delete
           cors:
             origins:
-              - https://smarthome.ivaquero.es
+              - https://smarthome.ignaciovaquero.com
           request:
             parameters:
               paths:
@@ -118,7 +118,7 @@ functions:
           method: post
           cors:
             origins:
-              - https://smarthome.ivaquero.es
+              - https://smarthome.ignaciovaquero.com
   signup:
     handler: bin/signup
     events:
@@ -128,7 +128,7 @@ functions:
           method: post
           cors:
             origins:
-              - https://smarthome.ivaquero.es
+              - https://smarthome.ignaciovaquero.com
   deleteuser:
     handler: bin/deleteuser
     events:
@@ -138,7 +138,7 @@ functions:
           method: delete
           cors:
             origins:
-              - https://smarthome.ivaquero.es
+              - https://smarthome.ignaciovaquero.com
 
 #    The following are a few example events you can configure
 #    NOTE: Please make sure to change your handler code to work with those events
