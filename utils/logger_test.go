@@ -43,7 +43,7 @@ func TestInitSugaredLogger(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(tt *testing.T) {
 			actual, _ := InitSugaredLogger(tc.verbose)
-			assert.ObjectsAreEqual(tc.expected, actual)
+			assert.EqualValues(tt, tc.expected, actual)
 		})
 	}
 }

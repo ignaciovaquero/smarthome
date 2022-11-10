@@ -62,7 +62,7 @@ func TestInitDynamoClient(t *testing.T) {
 				return
 			}
 			assert.NoError(tt, err)
-			assert.ObjectsAreEqual(expected, actual)
+			assert.EqualValues(tt, expected, actual)
 		})
 	}
 }
