@@ -290,7 +290,7 @@ func TestGet(t *testing.T) {
 				return
 			}
 			assert.NoError(tt, err)
-			assert.ObjectsAreEqual(tc.expected, actual)
+			assert.EqualValues(tt, tc.expected, actual)
 		})
 	}
 }
