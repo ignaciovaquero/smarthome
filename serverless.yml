@@ -40,7 +40,7 @@ provider:
   environment:
     SMARTHOME_AWS_REGION: eu-west-3
     SMARTHOME_JWT_SECRET: ${ssm:SMARTHOME_JWT_TOKEN~true}
-    SMARTHOME_CORS_ORIGINS: "https://smarthome.ignaciovaquero.com"
+    SMARTHOME_CORS_ORIGINS: "https://smarthome.ignaciovaquero.es"
     SMARTHOME_JWT_EXPIRATION: 15m
 
   # you can overwrite defaults here
